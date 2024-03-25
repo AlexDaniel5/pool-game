@@ -1,0 +1,10 @@
+# Ignore compiled object files
+*.o
+*.so
+
+# Ignore certain files
+A3Test1.py
+A3Test2.py
+A3Test3.py
+A3Test4.py
+phylib.i

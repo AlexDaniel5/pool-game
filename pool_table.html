@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pool Table Simulation</title>
+  <style>
+    /* CSS code for coordinate text */
+    #coordinates {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 5px;
+      border-radius: 5px;
+    }
+  </style>
+  <!-- jQuery library -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+</head>
+<body>
+  <svg id="poolTable" width="1000" height="500" viewBox="0 0 1400 2750" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Crops the table -->
+      <clipPath id="circleClip">
+        <rect width="1400" height="2750" />
+      </clipPath>
+    </defs>
+
+    <!-- General svg file -->
+    <g clip-path="url(#circleClip)">
+      <rect width="1350" height="2700" x="25" y="25" fill="#C0D0C0" />
+      <rect width="1400" height="25" x="0" y="0" fill="darkgreen" />
+      <rect width="1400" height="25" x="0" y="2725" fill="darkgreen" />
+      <rect width="25" height="2750" x="0" y="0" fill="darkgreen" />
+      <rect width="25" height="2750" x="1375" y="0" fill="darkgreen" />
+      <circle cx="50" cy="50" r="114" fill="black" />
+      <circle cx="50" cy="1350" r="114" fill="black" />
+      <circle cx="50" cy="2700" r="114" fill="black" />
+      <circle cx="1350" cy="50" r="114" fill="black" />
+      <circle cx="1350" cy="1350" r="114" fill="black" />
+      <circle cx="1350" cy="2700" r="114" fill="black" />
+      <circle cx="634" cy="634" r="28" fill="yellow" />
+      <circle id="cueBall" cx="675" cy="2025" r="28" fill="white" />
+    </g>
+  </svg>
+
+  <!-- Coordinate header -->
+  <div id="coordinates">Mouse Coordinates: <span id="valx">x=</span>, <span id="valy">y=</span></div>
+
+  <!-- JavaScript -->
+  <script>
+    let lastX = 0;
+    let lastY = 0;
+    const tableStartX = 380; // Adjust for table's starting x-coordinate
+    const tableEndX = 635; // Adjust for table's ending x-coordinate
+
+    function trackMouse(event) {
+      const svgRect = $('#poolTable')[0].getBoundingClientRect();
+      const mouseX = event.clientX - tableStartX;
+      const mouseY = event.clientY - svgRect.top;
+      if (mouseX >= 0 && mouseX <= (tableEndX - tableStartX) && mouseY >= 0 && mouseY <= svgRect.height) {
+        $('#valx').text(`x=${mouseX}`);
+        $('#valy').text(`y=${mouseY}`);
+        lastX = mouseX;
+        lastY = mouseY;
+      } else {
+        if (mouseX < 0) {
+          $('#valx').text(`x=0`);
+        } else if (mouseX > (tableEndX - tableStartX)) {
+          $('#valx').text(`x=${tableEndX - tableStartX}`);
+        } else {
+          $('#valx').text(`x=${lastX}`);
+        }
+        $('#valy').text(`y=${lastY}`);
+      }
+    }
+
+    // Event listener to track mouse movements within the SVG area
+    $('#poolTable').on('mousemove', trackMouse);
+
+    // Event listener to handle mouse leaving the pool table area
+    $('#poolTable').on('mouseleave', () => {
+      $('#valx').text(`x=${lastX}`);
+      $('#valy').text(`y=${lastY}`);
+    });
+
+
+    // Event listener for clicking the cue ball
+    $('#cueBall').on('mousedown', (event) => {
+        const cueBall = $('#cueBall')[0];
+        const cueBallRect = cueBall.getBoundingClientRect();
+        const cueBallCenterX = cueBallRect.left + cueBallRect.width / 2;
+        const cueBallCenterY = cueBallRect.top + cueBallRect.height / 2;
+
+        // Create a line element
+        const line = $('<div class="line"></div>').appendTo('body');
+        line.css({
+            position: 'absolute',
+            background: 'white',
+            height: '2px',
+            transformOrigin: 'left center',
+        });
+
+        // Event listener for moving the mouse
+        $(document).on('mousemove', (event) => {
+            const mouseX = event.pageX;
+            const mouseY = event.pageY;
+            
+            // Calculate the distance between cue ball center and mouse cursor
+            const distance = Math.sqrt(Math.pow(mouseX - cueBallCenterX, 2) + Math.pow(mouseY - cueBallCenterY, 2));
+            // Limit the line length based on cursor position
+            const maxLength = 150;
+            const limitedDistance = Math.min(distance, maxLength);
+
+            // Calculate the endpoint coordinates based on limited distance
+            const endX = cueBallCenterX + limitedDistance * (mouseX - cueBallCenterX) / distance;
+            const endY = cueBallCenterY + limitedDistance * (mouseY - cueBallCenterY) / distance;
+
+            line.css({
+                width: limitedDistance + 'px',
+                transform: `rotate(${Math.atan2(endY - cueBallCenterY, endX - cueBallCenterX)}rad)`,
+                left: cueBallCenterX + 'px',
+                top: cueBallCenterY + 'px',
+            });
+        });
+
+        // Event listener for releasing the mouse button
+        $(document).on('mouseup', (event) => {
+            line.remove();
+            $(document).off('mousemove');
+        });
+    });
+  </script>
+</body>
+</html>
