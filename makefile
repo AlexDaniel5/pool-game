@@ -5,7 +5,7 @@ PYTHON = -I/usr/include/python3.11
 all: _phylib.so 
 
 clean:
-	rm -rf *.o *.so *.svg __pycache__  *.db myprog phylib_wrap.c phylib.py
+	rm -rf *.o *.so *.svg __pycache__  *.db myprog phylib_wrap.c phylib.py .nfs*
 
 libphylib.so: phylib.o
 	$(CC) -shared -o libphylib.so phylib.o -lm

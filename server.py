@@ -1,60 +1,106 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qsl
-import json
 import sys
+import os
+import Physics
+import math
+import json
 
 class MyHandler(BaseHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header('Cache-Control', 'no-store, must-revalidate')
-        BaseHTTPRequestHandler.end_headers(self)
-
     def do_GET(self):
-        # Parse the URL path
-        parsed_path = urlparse(self.path)
-        path = parsed_path.path
+        parsed = urlparse(self.path)
+        if parsed.path == '/game_setup.html':
+            # Retrieve the HTML file
+            fp = open( '.'+self.path )
+            content = fp.read()
+            # Generate the headers
+            self.send_response(200)  # OK
+            self.send_header("Content-type", "text/html")
+            self.send_header("Content-length", len(content))
+            self.end_headers()
 
-        if path == '/pool_table.html':
+            # Send it to the browser
+            self.wfile.write(bytes(content, "utf-8"))
+        elif parsed.path == '/poolTable.svg':
             try:
-                with open('pool_table.html', 'rb') as file:
-                    content = file.read()
-                    self.send_response(200)
-                    self.send_header('Content-type', 'text/html')
-                    self.send_header('Content-length', len(content))
-                    self.end_headers()
-                    self.wfile.write(content)
-            except FileNotFoundError:
-                self.send_error(404, 'File Not Found: pool_table.html')
-        elif path == '/poolTable.svg':  # Handle SVG file request
-            try:
-                with open('poolTable.svg', 'rb') as file:
-                    content = file.read()
+                with open(os.path.join('.', parsed.path[1:]), 'rb') as file:
                     self.send_response(200)
                     self.send_header('Content-type', 'image/svg+xml')
-                    self.send_header('Content-length', len(content))
                     self.end_headers()
-                    self.wfile.write(content)
+                    self.wfile.write(file.read())
             except FileNotFoundError:
-                self.send_error(404, 'File Not Found: poolTable.svg')
+                self.send_error(404, 'File Not Found: {}'.format(parsed.path))
+        # Generate 404 for GET requests that aren't the files above
         else:
             self.send_response(404)
             self.end_headers()
-            self.wfile.write(bytes("404: %s not found" % path, "utf-8"))
+            self.wfile.write(bytes("404: %s not found" % self.path, "utf-8"))
 
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        post_params = json.loads(post_data.decode('utf-8'))
+        parsed = urlparse(self.path)
+        if parsed.path == '/pool_table.html':
+            # Receive the form data
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            formData = dict(parse_qsl(post_data))
+            # Retrieve player names
+            p1Name = str(formData['p1_name'])
+            p2Name = str(formData['p2_name'])
 
-        # Returns the updated table state
-        shoot(post_params['cue_ball_pos'], post_params['shoot_params'])
+            table = Physics.Table()
 
-        # Send a redirect response to the client
-        self.send_response(303)  # Redirect status code
-        self.send_header('Location', '/pool_table.html')  # Redirect to the HTML page
-        self.end_headers()
+            # Add all normal balls to table
+            ballNum = 1
+            xSpacing = 61
+            xChange = 30.5
+            yChange = 52.8
+            col = 1
+            for row in range(5):
+                x = 675 - xChange * row
+                y = 675 - yChange * row
+                for cols in range(col):
+                    pos = Physics.Coordinate(x, y)
+                    table += Physics.StillBall(ballNum, pos)
+                    ballNum += 1
+                    x += xSpacing
+                col += 1
+
+            # Cue ball
+            pos = Physics.Coordinate(677, 2025)
+            sb = Physics.StillBall(0, pos)
+            table += sb
+
+            db = Physics.Database(reset=True)
+            db.createDB()
+            
+            filename = "poolTable.svg"
+            with open(filename, 'w') as file:
+                file.write(table.svg())
+            table = table.segment()
+
+            # Open and read the content of the file
+            htmlContent = ''
+            filename = "pool_table.html"
+            with open(filename, 'rb') as file:
+                htmlContent = file.read()
+            htmlContent = htmlContent.decode('utf-8')
+            print(p1Name, p2Name)
+            htmlContent = htmlContent.replace('{player1}', p1Name)
+            htmlContent = htmlContent.replace('{player2}', p2Name)
+            # Send a successful HTTP response with SVG content to the client
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-length', len(htmlContent))
+            self.end_headers()
+            self.wfile.write(htmlContent.encode('utf-8'))
+        else:
+            # Generate 404 for POST requests that aren't the file above
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(bytes("404: %s not found" % self.path, "utf-8"))
 
 if __name__ == '__main__':
     httpd = HTTPServer( ( 'localhost', int(sys.argv[1]) ), MyHandler )
     print( "Server listing in port:  ", int(sys.argv[1]) )
-    print(f'Server started on http://localhost:{sys.argv[1]}/pool_table.html')
+    print(f'Server started on http://localhost:{sys.argv[1]}/game_setup.html')
     httpd.serve_forever()
