@@ -424,17 +424,16 @@ class Database:
 
     def getGame(self, gameID):
         self.cursor = self.conn.cursor()
-        self.cursor.execute("""
-            SELECT GAME.GAMENAME, PLAYER1.PLAYERNAME, PLAYER2.PLAYERNAME, TARGETTABLE.TABLEID
-            FROM GAME
-            JOIN PLAYER PLAYER1 ON GAME.GAMEID = PLAYER1.GAMEID AND PLAYER1.PLAYERID = (
-                SELECT PLAYERID FROM PLAYER WHERE GAMEID = GAME.GAMEID ORDER BY PLAYERID LIMIT 1
-            )
-            JOIN PLAYER PLAYER2 ON GAME.GAMEID = PLAYER2.GAMEID AND PLAYER2.PLAYERID != PLAYER1.PLAYERID
-            JOIN TABLESHOT ON GAME.GAMEID = TABLESHOT.GAMEID
-            JOIN TTABLE TARGETTABLE ON TABLESHOT.TABLEID = TARGETTABLE.TABLEID
-            WHERE GAME.GAMEID = ?""", (gameID,))
-
+        self.cursor.execute(f"""SELECT 
+                                (SELECT Game.GAMENAME FROM Game WHERE Game.GAMEID = ?),
+                                (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID ASC LIMIT 1), 
+                                (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID DESC LIMIT 1)
+                            FROM PLAYER 
+                            INNER JOIN Game
+                            ON Player.GAMEID = Game.GAMEID
+                            WHERE Player.GAMEID = ?  
+                            LIMIT 1
+                            """, (gameID, gameID, gameID, gameID))
         data = self.cursor.fetchone()
         self.conn.commit()
         self.cursor.close()
@@ -492,7 +491,7 @@ class Game:
             and player2Name is None
         ):
             self.gameID = gameID + 1
-            self.gameName, self.player1Name, self.player2Name, tableID = self.database.getGame(gameID)
+            self.gameName, self.player1Name, self.player2Name = self.database.getGame(gameID)
         # Creating a game with attributes given
         elif (
             gameID is None

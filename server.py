@@ -5,6 +5,7 @@ import os
 import Physics
 import math
 import json
+import random
 
 class MyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -21,11 +22,22 @@ class MyHandler(BaseHTTPRequestHandler):
 
             # Send it to the browser
             self.wfile.write(bytes(content, "utf-8"))
+        # Find my master svg file
         elif parsed.path == '/poolTable.svg':
             try:
                 with open(os.path.join('.', parsed.path[1:]), 'rb') as file:
                     self.send_response(200)
                     self.send_header('Content-type', 'image/svg+xml')
+                    self.end_headers()
+                    self.wfile.write(file.read())
+            except FileNotFoundError:
+                self.send_error(404, 'File Not Found: {}'.format(parsed.path))
+        # Find any javascript files I create
+        elif parsed.path.endswith('.js'):
+            try:
+                with open(os.path.join('.', parsed.path[1:]), 'rb') as file:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/javascript')
                     self.end_headers()
                     self.wfile.write(file.read())
             except FileNotFoundError:
@@ -44,8 +56,17 @@ class MyHandler(BaseHTTPRequestHandler):
             post_data = self.rfile.read(content_length).decode('utf-8')
             formData = dict(parse_qsl(post_data))
             # Retrieve player names
-            p1Name = str(formData['p1_name'])
-            p2Name = str(formData['p2_name'])
+            p1Name = formData.get('p1_name', None)
+            p2Name = formData.get("p2_name", None)
+            gameName = formData.get('game_name', None)
+            gameID = formData.get('game_id', None)
+
+            # Randomize who plays first
+            playerNum = random.randint(1, 2)
+            if playerNum == 1:
+                currentPlayer = p1Name
+            else:
+                currentPlayer = p2Name
 
             table = Physics.Table()
 
@@ -64,14 +85,17 @@ class MyHandler(BaseHTTPRequestHandler):
                     ballNum += 1
                     x += xSpacing
                 col += 1
-
             # Cue ball
             pos = Physics.Coordinate(677, 2025)
             sb = Physics.StillBall(0, pos)
             table += sb
 
+            # Initialize database
             db = Physics.Database(reset=True)
             db.createDB()
+            db.writeTable(table)
+            game = Physics.Game(gameID, gameName, p1Name, p2Name)
+            db.setGame(gameName, p1Name, p2Name)
             
             filename = "poolTable.svg"
             with open(filename, 'w') as file:
@@ -84,10 +108,41 @@ class MyHandler(BaseHTTPRequestHandler):
             with open(filename, 'rb') as file:
                 htmlContent = file.read()
             htmlContent = htmlContent.decode('utf-8')
-            print(p1Name, p2Name)
-            htmlContent = htmlContent.replace('{player1}', p1Name)
-            htmlContent = htmlContent.replace('{player2}', p2Name)
+            htmlContent = htmlContent.replace('<span id="p1Name"></span>', p1Name)
+            htmlContent = htmlContent.replace('<span id="p2Name"></span>', p2Name)
+            htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
+            htmlContent = htmlContent.replace('data_id="0"', f'data_id="{game.gameID}"')
+            htmlContent = htmlContent.replace('data_cp="0"', f'data_cp="{playerNum}"')
             # Send a successful HTTP response with SVG content to the client
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.send_header('Content-length', len(htmlContent))
+            self.end_headers()
+            self.wfile.write(htmlContent.encode('utf-8'))
+        elif parsed.path == '/shoot':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            formData = dict(parse_qsl(post_data))
+
+            velX = float(formData.get('velX'))
+            velY = float(formData.get('velY'))
+            gameid = int(formData.get('gameid'))
+            playerNum = int(formData.get('playerNum'))
+            game = Physics.Game(gameid)
+            print("Current player", playerNum)
+            if playerNum == 1:
+                currentPlayer = game.player2Name
+                playerNum = 2
+            else:
+                currentPlayer = game.player1Name
+                playerNum = 1
+            htmlContent = ''
+            filename = "pool_table.html"
+            with open(filename, 'rb') as file:
+                htmlContent = file.read()
+            htmlContent = htmlContent.decode('utf-8')
+            htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
+            htmlContent = htmlContent.replace('data_cp="1"', f'data_cp="{playerNum}"')
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.send_header('Content-length', len(htmlContent))

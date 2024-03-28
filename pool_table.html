@@ -48,135 +48,19 @@
 </head>
 <body>
   <div id="container">
+    <!-- Player header -->
     <div id="playerNamesContainer">
-      <h2>{player1} vs {player2}</h2>
-      <p id="currentTurn">Current Turn: {player1}</p>
-    </div>
-    <svg id="poolTable" width="1000" height="500" viewBox="0 0 1400 2750" xmlns="http://www.w3.org/2000/svg">
-      <!-- SVG content will be inserted here -->
-    </svg>
-    
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
-
+      <h2><span id="p1Name"></span> vs <span id="p2Name"></span></h2>
+      <p id="currentTurn">Current Turn: <span id="currentP"></span></p>
+    </div>    
+    <!-- SVG File -->
+    <svg id="poolTable" width="1000" height="500" viewBox="0 0 1400 2750" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="game_id" data_id="0"></div>
+    <div id="current_turn" data_cp="0"></div>
     <!-- Coordinate header -->
     <div id="coordinates">Mouse Coordinates: <span id="valx">x=</span>, <span id="valy">y=</span></div>
   </div>
-  
   <!-- JavaScript -->
-  <script>
-    // Function to fetch SVG content from file and insert it into #poolTable
-    function loadSVGContent() {
-      $.get('poolTable.svg', function(data) {
-        $('#poolTable').html(data.documentElement);
-        // After loading SVG content, add event listeners and other logic here
-        addEventListeners();
-      });
-    }
-
-    $(document).ready(function() {{
-        const player1Name = '{player1}';
-        const player2Name = '{player2}';
-        $('#playerNamesContainer h2').text(`${player1Name} vs ${player2Name}`);
-    }});
-
-    // Function to set player names dynamically
-    function setPlayerNames(player1, player2) {
-      $('#player1Name').text(player1);
-      $('#player2Name').text(player2);
-    }
-
-    let lastX = 0;
-    let lastY = 0;
-    let currentPlayer = 'Player 1';
-    let player1Name = '';
-    let player2Name = '';
-    const tableStartX = 436;
-    const tableEndX = 691;
-    // Event listener to track mouse
-    function addEventListeners() {
-      function trackMouse(event) {
-        const svgRect = $('#poolTable')[0].getBoundingClientRect();
-        const mouseX = event.clientX - tableStartX;
-        const mouseY = event.clientY - svgRect.top;
-        if (mouseX >= 0 && mouseX <= (tableEndX - tableStartX) && mouseY >= 0 && mouseY <= svgRect.height) {
-          $('#valx').text(`x=${mouseX}`);
-          $('#valy').text(`y=${Math.round(mouseY)}`);
-          lastX = mouseX;
-          lastY = Math.round(mouseY);
-        } else {
-          if (mouseX < 0) {
-            $('#valx').text(`x=0`);
-          } else if (mouseX > (tableEndX - tableStartX)) {
-            $('#valx').text(`x=${tableEndX - tableStartX}`);
-          } else {
-            $('#valx').text(`x=${lastX}`);
-          }
-          $('#valy').text(`y=${lastY}`);
-        }
-      }
-      $('#poolTable').on('mousemove', trackMouse);
-
-      // Identify cue ball by its colour
-      var cueBall = $("circle[fill='WHITE']");
-      // Event listener for clicking the cue ball
-      cueBall.on('mousedown', (event) => {
-      const cueBall = event.target;
-      const cueBallRect = cueBall.getBoundingClientRect();
-      const cueBallCenterX = cueBallRect.left + cueBallRect.width / 2;
-      const cueBallCenterY = cueBallRect.top + cueBallRect.height / 2;
-
-      // Create a line element
-      const line = $('<div class="line"></div>').appendTo('body');
-      line.css({
-        position: 'absolute',
-        background: 'white',
-        height: '2px',
-        transformOrigin: 'left center',
-      });
-
-      // Event listener for moving the mouse
-      $(document).on('mousemove', (event) => {
-        const mouseX = event.pageX;
-        const mouseY = event.pageY;
-
-        // Calculate the distance between cue ball center and mouse cursor
-        const distance = Math.sqrt(Math.pow(mouseX - cueBallCenterX, 2) + Math.pow(mouseY - cueBallCenterY, 2));
-        // Limit the line length based on cursor position
-        const maxLength = 150;
-        const limitedDistance = Math.min(distance, maxLength);
-
-        // Calculate the endpoint coordinates based on limited distance
-        const endX = cueBallCenterX + limitedDistance * (mouseX - cueBallCenterX) / distance;
-        const endY = cueBallCenterY + limitedDistance * (mouseY - cueBallCenterY) / distance;
-
-        line.css({
-          width: limitedDistance + 'px',
-          transform: `rotate(${Math.atan2(endY - cueBallCenterY, endX - cueBallCenterX)}rad)`,
-          left: cueBallCenterX + 'px',
-          top: cueBallCenterY + 'px',
-        });
-      });
-
-      // Event listener for releasing the mouse button
-      $(document).on('mouseup', (event) => {
-          line.remove();
-          $(document).off('mousemove');
-          // Send POST request to server
-          const cueBallPos = { x: cueBallCenterX, y: cueBallCenterY };
-          const shootParams = { /* Add any other necessary parameters */ };
-          $.post('http://localhost:8467/', { cue_ball_pos: cueBallPos, shoot_params: shootParams }, function(data, status) {
-              // Update the SVG content with the received data
-              $('#poolTable').html(data);
-          });
-      })
-
-    });
-  }
-
-    // Call loadSVGContent() to fetch and insert SVG content
-    loadSVGContent();
-
-    setPlayerNames('Player 1', 'Player 2');
-  </script>
+  <script src="poolActions.js"></script>
 </body>
 </html>

@@ -35,21 +35,27 @@
             <label for="game_name">Game Name:</label>
             <input id="game_name" type="text" name="game_name" size="15">
             <h3><input type="submit" value="Start Game"></h3>
+            <h2>Load Game</h2>
+            <label for="game_name">Game ID:</label>
+            <input id="game_id" type="text" name="game_id" size="15">
+            <h3><input type="submit" value="Load Game"></h3>
         </form>
         <script>
             function setDefaultNames() {
                 var p1Input = document.getElementById('p1_name');
                 var p2Input = document.getElementById('p2_name');
                 var gameInput = document.getElementById('game_name')
-    
-                if (p1Input.value.trim() === '') {
-                    p1Input.value = 'Player 1';
-                }
-                if (p2Input.value.trim() === '') {
-                    p2Input.value = 'Player 2';
-                }
-                if (gameInput.value.trim() === '') {
-                    gameInput.value = 'Game 1';
+                var gameId = document.getElementById('game_id')
+                if (game_id.value === '') {
+                    if (p1Input.value.trim() === '') {
+                        p1Input.value = 'Player 1';
+                    }
+                    if (p2Input.value.trim() === '') {
+                        p2Input.value = 'Player 2';
+                    }
+                    if (gameInput.value.trim() === '') {
+                        gameInput.value = 'Game 1';
+                    }
                 }
             }
         </script>
