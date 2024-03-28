@@ -2,48 +2,23 @@
 function loadSVGContent() {
     $.get('poolTable.svg', function(data) {
       $('#poolTable').html(data.documentElement);
-      // All events possible on the SVG file
-      addEventListeners();
     });
 }
 
-let lastX = 0;
-let lastY = 0;
-const tableStartX = 436;
-const tableEndX = 691;
+let endX = 0;
+let endY = 0;
 // Event listener to track mouse
 function addEventListeners() {
-    function trackMouse(event) {
-        const svgRect = $('#poolTable')[0].getBoundingClientRect();
-        const mouseX = event.clientX - tableStartX;
-        const mouseY = event.clientY - svgRect.top;
-        if (mouseX >= 0 && mouseX <= (tableEndX - tableStartX) && mouseY >= 0 && mouseY <= svgRect.height) {
-            $('#valx').text(`x=${mouseX}`);
-            $('#valy').text(`y=${Math.round(mouseY)}`);
-            lastX = mouseX;
-            lastY = Math.round(mouseY);
-        } else {
-            if (mouseX < 0) {
-                $('#valx').text(`x=0`);
-            } else if (mouseX > (tableEndX - tableStartX)) {
-                $('#valx').text(`x=${tableEndX - tableStartX}`);
-            } else {
-                $('#valx').text(`x=${lastX}`);
-            }
-            $('#valy').text(`y=${lastY}`);
-        }
-    }
-    $('#poolTable').on('mousemove', trackMouse);
-
     // Identify cue ball by its colour
     var cueBall = $("circle[fill='WHITE']");
     // Event listener for clicking the cue ball
+    console.log(cueBall)
     cueBall.on('mousedown', (event) => {
+        console.log("MOUSEDOWNNNN")
         const cueBall = event.target;
         const cueBallRect = cueBall.getBoundingClientRect(); //Returns size of cueball
         const cueBallCenterX = cueBallRect.left + cueBallRect.width / 2;
         const cueBallCenterY = cueBallRect.top + cueBallRect.height / 2;
-
         // Create line element
         const line = $('<div class="line"></div>').appendTo('body');
         line.css({
@@ -64,8 +39,8 @@ function addEventListeners() {
             const maxLength = 150;
             const limitedDistance = Math.min(distance, maxLength);
             // Calculate the endpoint coordinates based on limited distance
-            const endX = cueBallCenterX + limitedDistance * (mouseX - cueBallCenterX) / distance;
-            const endY = cueBallCenterY + limitedDistance * (mouseY - cueBallCenterY) / distance;
+            endX = cueBallCenterX + limitedDistance * (mouseX - cueBallCenterX) / distance;
+            endY = cueBallCenterY + limitedDistance * (mouseY - cueBallCenterY) / distance;
 
             line.css({
                 width: limitedDistance + 'px',
@@ -79,32 +54,51 @@ function addEventListeners() {
         $(document).on('mouseup', (event) => {
             line.remove();
             $(document).off('mousemove');
-            velX = event.pageX - cueBallCenterX
-            velY = event.pageY - cueBallCenterY
+            $(document).off('mouseup');
+            const cueBallCenterX = cueBallRect.left + cueBallRect.width / 2;
+            const cueBallCenterY = cueBallRect.top + cueBallRect.height / 2;
+            const mouseX = event.pageX;
+            const mouseY = event.pageY;
+            let rawVelX = mouseX - cueBallCenterX;
+            let rawVelY = mouseY - cueBallCenterY;
+            const maxDistance = 150; // Maximum distance for normalization
+            let normalizedVelX = rawVelX / maxDistance;
+            let normalizedVelY = rawVelY / maxDistance;
+            // Normalize velocity
+            const scale = 10000;
+            let scaledVelX = Math.round(normalizedVelX * scale);
+            let scaledVelY = Math.round(normalizedVelY * scale);
+            // Cap the velocity at ±10000
+            velX = Math.max(-10000, Math.min(10000, scaledVelX));
+            velY = Math.max(-10000, Math.min(10000, scaledVelY));
             gameid = $('#game_id').attr('data_id');
             playerNum = $('#current_turn').attr('data_cp');
-            console.log(gameid, velX, velY, playerNum)
+            console.log("Shot", gameid, velX, velY, playerNum)
             // Define the data to be sent in the POST request
             postData = {
-                velX: velX,
-                velY: velY,
+                velX: -velX,
+                velY: -velY,
                 gameid: gameid,
                 playerNum: playerNum
             };
-
-            // Send POST request to the specified URL (/shoot.html in this case)
-            $.post('/shoot', postData)
-                .done(function(data) {
-                    // Handle successful response here if needed
-                    console.log('POST request successful:');
-                })
-                .fail(function(error) {
-                    // Handle errors if the POST request fails
-                    console.error('Error sending POST request:', error);
-                });
+            // Send POST request
+            $.post('/shoot', postData, showShot)
         });
-
     });
+}
+
+function showShot(data, status) {
+    var tables = data.split(":,:")
+    tables.forEach(function(item, index) {
+        setTimeout(function(){
+            displayFrame(item)
+        }, 10 * (index + 1))
+    })
+}
+
+function displayFrame(frame){
+    $("#poolTable").html(frame);
+    addEventListeners();
 }
 
 // Call loadSVGContent() to fetch and insert SVG content

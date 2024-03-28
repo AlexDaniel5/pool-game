@@ -335,7 +335,9 @@ class Database:
 
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS GAME (
                             GAMEID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-                            GAMENAME VARCHAR (64) NOT NULL);""")
+                            TABLEID INTEGER NOT NULL,
+                            GAMENAME VARCHAR (64),
+                            FOREIGN KEY (TABLEID) REFERENCES TTABLE);""")
         
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS PLAYER (
                             PLAYERID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -383,11 +385,11 @@ class Database:
         self.cursor.close()
         return table
 
-    def writeTable(self, table):
+    def writeTable(self, table, gameName):
         self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO TTable (TIME) VALUES (?)", (table.time,))
         tableID = self.cursor.lastrowid
-
+        self.cursor.execute("INSERT INTO GAME (TABLEID, GAMENAME) VALUES (?, ?)", (tableID, gameName))
         # Get objects from table and add it to the Ball and BallTable databases
         for object in table:
             # None type cause an error on the elif statements
@@ -427,22 +429,31 @@ class Database:
         self.cursor.execute(f"""SELECT 
                                 (SELECT Game.GAMENAME FROM Game WHERE Game.GAMEID = ?),
                                 (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID ASC LIMIT 1), 
-                                (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID DESC LIMIT 1)
+                                (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID DESC LIMIT 1),
+                                (SELECT Game.TABLEID FROM Game WHERE GAME.GAMEID = ?)
                             FROM PLAYER 
                             INNER JOIN Game
                             ON Player.GAMEID = Game.GAMEID
                             WHERE Player.GAMEID = ?  
                             LIMIT 1
-                            """, (gameID, gameID, gameID, gameID))
+                            """, (gameID, gameID, gameID, gameID, gameID))
         data = self.cursor.fetchone()
         self.conn.commit()
         self.cursor.close()
         return data
 
-    def setGame(self, gameName, player1Name, player2Name):
+    def shotFinished(self, tableID, gameID):
+        self.cursor = self.conn.cursor()
+        print(gameID, tableID)
+        self.cursor.execute("UPDATE GAME SET TABLEID = ? WHERE GAMEID = ?", (tableID, gameID))
+        data = self.cursor.fetchone()
+        self.conn.commit()
+        self.cursor.close()
+
+    def setGame(self, gameName, tableID, player1Name, player2Name):
         self.cursor = self.conn.cursor()
         # Insert a new game into the game table
-        self.cursor.execute("INSERT INTO GAME (GAMENAME) VALUES (?)", (gameName,))
+        self.cursor.execute("INSERT INTO GAME (TABLEID, GAMENAME) VALUES (?, ?)", (tableID, gameName))
         gameID = self.cursor.lastrowid
         # Insert both players into the player table
         self.cursor.execute("INSERT INTO PLAYER (GAMEID, PLAYERNAME) VALUES (?, ?)", (gameID, player1Name))
@@ -455,13 +466,12 @@ class Database:
     def newShot(self, playerName, gameID):
         self.cursor = self.conn.cursor()
         # Retrieve player ID based on the game and player name
-        playerID = self.cursor.execute(""" 
-            SELECT PLAYERID
-            FROM PLAYER
-            WHERE GAMEID = ? AND PLAYERNAME = ?
-        """, (gameID, playerName)).fetchone()[0]
+        playerID = self.cursor.execute("""SELECT Game.GAMEID, Player.PLAYERID FROM Game 
+                            INNER JOIN Player
+                            ON Game.GAMEID = Player.GAMEID
+                            WHERE Game.GAMEID = ? AND Player.PLAYERNAME = ?""", (gameID, playerName)).fetchone()
         # Insert a new shot into the shot table
-        self.cursor.execute("INSERT INTO SHOT (PLAYERID, GAMEID) VALUES (?, ?)", (playerID, gameID))
+        #self.cursor.execute("INSERT INTO SHOT (PLAYERID, GAMEID) VALUES (?, ?)", (playerID, gameID))
         shotID = self.cursor.lastrowid
         self.conn.commit()
         self.cursor.close()
@@ -491,7 +501,7 @@ class Game:
             and player2Name is None
         ):
             self.gameID = gameID + 1
-            self.gameName, self.player1Name, self.player2Name = self.database.getGame(gameID)
+            self.gameName, self.player1Name, self.player2Name, self.tableID = self.database.getGame(gameID)
         # Creating a game with attributes given
         elif (
             gameID is None
@@ -502,18 +512,50 @@ class Game:
             self.gameName = gameName
             self.player1Name = player1Name
             self.player2Name = player2Name
-
-            self.gameID = self.database.setGame(gameName, player1Name, player2Name)
+            self.tableID = Game.createTable(gameName)
+            self.gameID = self.database.setGame(gameName, self.tableID, player1Name, player2Name)
         else:
             raise TypeError("Invalid arguments for constructor.")
+    
+    def createTable(gameName):
+        table = Table()
+        # Add all normal balls to table
+        ballNum = 1
+        xSpacing = 61
+        xChange = 30.5
+        yChange = 52.8
+        col = 1
+        for row in range(5):
+            x = 675 - xChange * row
+            y = 675 - yChange * row
+            for cols in range(col):
+                pos = Coordinate(x, y)
+                table += StillBall(ballNum, pos)
+                ballNum += 1
+                x += xSpacing
+            col += 1
+        # Cue ball
+        pos = Coordinate(677, 2025)
+        sb = StillBall(0, pos)
+        table += sb
+        filename = "poolTable.svg"
+        with open(filename, 'w') as file:
+            file.write(table.svg())
+
+        # Initialize database
+        db = Database()
+        db.createDB()
+        return db.writeTable(table, gameName)
 
     def shoot(self, gameName, playerName, table, xvel, yvel):
         self.database = Database()
         gameID = self.gameID
         # Retrieve game and player information
-        shotID = self.database.newShot(playerName, gameID)
+        #shotID = self.database.newShot(playerName, gameID)
         # Set attributes of cueball
         table.cueBall(table, xvel, yvel)
+        
+        tablesList = []
         while True:
             oldTable = table
             table = table.segment()
@@ -526,6 +568,13 @@ class Game:
                 nextFrameTime = i * FRAME_RATE
                 newTable = oldTable.roll(nextFrameTime)
                 newTable.time = nextFrameTime + oldTable.time
-                newTableID = self.database.writeTable(newTable)
-                self.database.addTableShot(newTableID, shotID)
-        return shotID
+                #newTableID = self.database.`writeTable`(newTable, gameName)
+                #self.database.addTableShot(newTableID, shotID)
+                
+                # Append the new table to the tables_list
+                tablesList.append(newTable)
+        tablesList.append(oldTable)
+        tableID = self.database.writeTable(oldTable, gameName)
+        print("GAMEID",gameID)
+        self.database.shotFinished(tableID, gameID)
+        return tablesList

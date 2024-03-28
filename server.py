@@ -68,39 +68,7 @@ class MyHandler(BaseHTTPRequestHandler):
             else:
                 currentPlayer = p2Name
 
-            table = Physics.Table()
-
-            # Add all normal balls to table
-            ballNum = 1
-            xSpacing = 61
-            xChange = 30.5
-            yChange = 52.8
-            col = 1
-            for row in range(5):
-                x = 675 - xChange * row
-                y = 675 - yChange * row
-                for cols in range(col):
-                    pos = Physics.Coordinate(x, y)
-                    table += Physics.StillBall(ballNum, pos)
-                    ballNum += 1
-                    x += xSpacing
-                col += 1
-            # Cue ball
-            pos = Physics.Coordinate(677, 2025)
-            sb = Physics.StillBall(0, pos)
-            table += sb
-
-            # Initialize database
-            db = Physics.Database(reset=True)
-            db.createDB()
-            db.writeTable(table)
             game = Physics.Game(gameID, gameName, p1Name, p2Name)
-            db.setGame(gameName, p1Name, p2Name)
-            
-            filename = "poolTable.svg"
-            with open(filename, 'w') as file:
-                file.write(table.svg())
-            table = table.segment()
 
             # Open and read the content of the file
             htmlContent = ''
@@ -128,26 +96,37 @@ class MyHandler(BaseHTTPRequestHandler):
             velY = float(formData.get('velY'))
             gameid = int(formData.get('gameid'))
             playerNum = int(formData.get('playerNum'))
+
             game = Physics.Game(gameid)
-            print("Current player", playerNum)
-            if playerNum == 1:
-                currentPlayer = game.player2Name
-                playerNum = 2
-            else:
-                currentPlayer = game.player1Name
-                playerNum = 1
-            htmlContent = ''
-            filename = "pool_table.html"
-            with open(filename, 'rb') as file:
-                htmlContent = file.read()
-            htmlContent = htmlContent.decode('utf-8')
-            htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
-            htmlContent = htmlContent.replace('data_cp="1"', f'data_cp="{playerNum}"')
+            shots = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
+            for i in range(len(shots)):
+                svgString = shots[i].svg()
+                shots[i] = svgString
+            content = ":,:".join(shots)
+
+            file_path = 'poolTable.svg'
+            with open(file_path, 'w') as file:
+                file.write(shots[-1])
+
+            # print("Current player", playerNum)
+            # if playerNum == 1:
+            #     currentPlayer = game.player2Name
+            #     playerNum = 2
+            # else:
+            #     currentPlayer = game.player1Name
+            #     playerNum = 1
+            # htmlContent = ''
+            # filename = "pool_table.html"
+            # with open(filename, 'rb') as file:
+            #     htmlContent = file.read()
+            # htmlContent = htmlContent.decode('utf-8')
+            #htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
+            #htmlContent = htmlContent.replace('data_cp="1"', f'data_cp="{playerNum}"')
             self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.send_header('Content-length', len(htmlContent))
+            self.send_header('Content-type', 'text')
+            self.send_header('Content-length', len(content))
             self.end_headers()
-            self.wfile.write(htmlContent.encode('utf-8'))
+            self.wfile.write(bytes(content, "utf-8"))
         else:
             # Generate 404 for POST requests that aren't the file above
             self.send_response(404)
