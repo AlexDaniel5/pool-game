@@ -2,6 +2,7 @@
 function loadSVGContent() {
     $.get('poolTable.svg', function(data) {
       $('#poolTable').html(data.documentElement);
+      addEventListeners();
     });
 }
 

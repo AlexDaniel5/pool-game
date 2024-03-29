@@ -6,6 +6,8 @@ import math
 ################################################################################
 # import constants from phylib to global varaibles
 BALL_RADIUS = phylib.PHYLIB_BALL_RADIUS
+SMALLER_RADIUS = BALL_RADIUS / 1.3
+SMALLEST_RADIUS = BALL_RADIUS / 1.8
 BALL_DIAMETER = 2 * BALL_RADIUS
 HOLE_RADIUS = 2 * BALL_DIAMETER
 TABLE_LENGTH = phylib.PHYLIB_TABLE_LENGTH
@@ -42,7 +44,7 @@ BALL_COLOURS = [
     "GREEN",
     "BROWN",
     "BLACK",
-    "LIGHTYELLOW",
+    "KHAKI",
     "LIGHTBLUE",
     "PINK",             # no LIGHTRED
     "MEDIUMPURPLE",     # no LIGHTPURPLE
@@ -85,7 +87,18 @@ class StillBall( phylib.phylib_object ):
 
     # add an svg method here
     def svg(self):
-        return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
+        if self.obj.still_ball.number > 8:
+            return """
+            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            """ % (
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  # Adjust SMALLER_RADIUS and color as needed
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]  # Adjust SMALLEST_RADIUS as needed
+            )
+        else:
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
 
 class RollingBall(phylib.phylib_object):
     def __init__(self, number, pos, vel, acc):
@@ -97,7 +110,18 @@ class RollingBall(phylib.phylib_object):
         self.__class__ = RollingBall
 
     def svg(self):
-        return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.rolling_ball.pos.x, self.obj.rolling_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.rolling_ball.number])
+        if self.obj.still_ball.number > 8:
+            return """
+            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            """ % (
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  # Adjust SMALLER_RADIUS and color as needed
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]  # Adjust SMALLEST_RADIUS as needed
+            )
+        else:
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
 
 class Hole(phylib.phylib_object):
     def __init__(self, pos):
@@ -426,25 +450,23 @@ class Database:
 
     def getGame(self, gameID):
         self.cursor = self.conn.cursor()
-        self.cursor.execute(f"""SELECT 
-                                (SELECT Game.GAMENAME FROM Game WHERE Game.GAMEID = ?),
-                                (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID ASC LIMIT 1), 
-                                (SELECT Player.PLAYERNAME FROM Player WHERE Player.GAMEID = ? ORDER BY Player.PLAYERID DESC LIMIT 1),
-                                (SELECT Game.TABLEID FROM Game WHERE GAME.GAMEID = ?)
-                            FROM PLAYER 
-                            INNER JOIN Game
-                            ON Player.GAMEID = Game.GAMEID
-                            WHERE Player.GAMEID = ?  
-                            LIMIT 1
-                            """, (gameID, gameID, gameID, gameID, gameID))
-        data = self.cursor.fetchone()
+        self.cursor.execute("""
+                            SELECT PLAYERNAME, GAMENAME 
+                            FROM PLAYER
+                            INNER JOIN GAME ON GAME.GAMEID = PLAYER.GAMEID
+                            WHERE PLAYER.GAMEID = ?
+                            ORDER BY PLAYERID
+                            """, (gameID,))
+        data = self.cursor.fetchall()
+        self.cursor.execute("SELECT TABLEID FROM GAME WHERE GAMEID = ?", (gameID,))
+        table_row = self.cursor.fetchone()
+        tableID = int(table_row[0])
         self.conn.commit()
         self.cursor.close()
-        return data
+        return data, tableID
 
     def shotFinished(self, tableID, gameID):
         self.cursor = self.conn.cursor()
-        print(gameID, tableID)
         self.cursor.execute("UPDATE GAME SET TABLEID = ? WHERE GAMEID = ?", (tableID, gameID))
         data = self.cursor.fetchone()
         self.conn.commit()
@@ -500,8 +522,10 @@ class Game:
             and player1Name is None
             and player2Name is None
         ):
-            self.gameID = gameID + 1
-            self.gameName, self.player1Name, self.player2Name, self.tableID = self.database.getGame(gameID)
+            self.gameID = gameID
+            game, self.tableID = self.database.getGame(gameID)
+            self.player1Name, self.gameName = game[0]
+            self.player2Name = game[1][0]
         # Creating a game with attributes given
         elif (
             gameID is None
@@ -575,6 +599,6 @@ class Game:
                 tablesList.append(newTable)
         tablesList.append(oldTable)
         tableID = self.database.writeTable(oldTable, gameName)
-        print("GAMEID",gameID)
         self.database.shotFinished(tableID, gameID)
-        return tablesList
+        #self.database.updateGame(tableID, gameID)
+        return tablesList, oldTable

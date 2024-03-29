@@ -96,9 +96,8 @@ class MyHandler(BaseHTTPRequestHandler):
             velY = float(formData.get('velY'))
             gameid = int(formData.get('gameid'))
             playerNum = int(formData.get('playerNum'))
-
             game = Physics.Game(gameid)
-            shots = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
+            shots, table = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
             for i in range(len(shots)):
                 svgString = shots[i].svg()
                 shots[i] = svgString
