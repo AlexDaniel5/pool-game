@@ -10,12 +10,9 @@ let endX = 0;
 let endY = 0;
 // Event listener to track mouse
 function addEventListeners() {
-    // Identify cue ball by its colour
     var cueBall = $("circle[fill='WHITE']");
     // Event listener for clicking the cue ball
-    console.log(cueBall)
     cueBall.on('mousedown', (event) => {
-        console.log("MOUSEDOWNNNN")
         const cueBall = event.target;
         const cueBallRect = cueBall.getBoundingClientRect(); //Returns size of cueball
         const cueBallCenterX = cueBallRect.left + cueBallRect.width / 2;
@@ -94,12 +91,24 @@ function showShot(data, status) {
         setTimeout(function(){
             displayFrame(item)
         }, 10 * (index + 1))
-    })
+    });
+    // Add event listeners to the last svg displayed
+    setTimeout(function() {
+        addEventListeners();
+        switchCurrentP();
+    }, 10 * tables.length);
 }
 
 function displayFrame(frame){
     $("#poolTable").html(frame);
-    addEventListeners();
+}
+
+function switchCurrentP() {
+    var currentPlayerText = $('#currentP').text();
+    var p1Name = $('#p1Name').text();
+    var p2Name = $('#p2Name').text();
+    var nextPlayerText = currentPlayerText === p1Name ? p2Name : p1Name;
+    $('#currentP').text(nextPlayerText);
 }
 
 // Call loadSVGContent() to fetch and insert SVG content

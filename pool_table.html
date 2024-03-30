@@ -1,50 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pool Table Simulation</title>
-  <!-- CSS -->
-  <style>
-    #coordinates {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background-color: rgba(255, 255, 255, 0.8);
-      padding: 5px;
-      border-radius: 5px;
-    }
-     html, body {
-      display: flex;
-      justify-content: right;
-      align-items: bottom;
-    }
-    #poolTable {
-      width: 2000px;
-      height: 1000px;
-      transform: translate(130px, -20px);
-    }
-    #container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      max-width: 1400px;
-      padding: 10px;
-    }
-    #playerNamesContainer {
-      text-align: center;
-      transform: translate(0, -10px);
-    }
-    #playerNamesContainer h2 {
-      margin: 0;
-    }
-    #currentTurn {
-      font-weight: bold;
-      transform: translate(0, -10px);
-    }
-  </style>
-  <!-- jQuery library -->
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pool Table Simulation</title>
+    <!-- CSS -->
+    <link rel="stylesheet" href="poolTableStyle.css">
 </head>
 <body>
   <div id="container">
@@ -58,6 +19,8 @@
     <div id="game_id" data_id="0"></div>
     <div id="current_turn" data_cp="0"></div>
   </div>
+  <!-- jQuery library -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
   <!-- JavaScript -->
   <script src="poolActions.js"></script>
 </body>

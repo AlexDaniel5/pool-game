@@ -32,7 +32,7 @@ class MyHandler(BaseHTTPRequestHandler):
                     self.wfile.write(file.read())
             except FileNotFoundError:
                 self.send_error(404, 'File Not Found: {}'.format(parsed.path))
-        # Find any javascript files I create
+        # Find any javascript files
         elif parsed.path.endswith('.js'):
             try:
                 with open(os.path.join('.', parsed.path[1:]), 'rb') as file:
@@ -42,6 +42,16 @@ class MyHandler(BaseHTTPRequestHandler):
                     self.wfile.write(file.read())
             except FileNotFoundError:
                 self.send_error(404, 'File Not Found: {}'.format(parsed.path))
+        # Find my css Files
+        elif parsed.path.endswith('.css'):
+            try:
+                with open(os.path.join('.', parsed.path[1:]), 'rb') as file:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/css')
+                    self.end_headers()
+                    self.wfile.write(file.read())
+            except FileNotFoundError:
+                self.send_error(404, 'File Not Found: poolTableStyle.css')
         # Generate 404 for GET requests that aren't the files above
         else:
             self.send_response(404)
@@ -76,8 +86,8 @@ class MyHandler(BaseHTTPRequestHandler):
             with open(filename, 'rb') as file:
                 htmlContent = file.read()
             htmlContent = htmlContent.decode('utf-8')
-            htmlContent = htmlContent.replace('<span id="p1Name"></span>', p1Name)
-            htmlContent = htmlContent.replace('<span id="p2Name"></span>', p2Name)
+            htmlContent = htmlContent.replace('<span id="p1Name"></span>', f'<span id="p1Name">{p1Name}</span>')
+            htmlContent = htmlContent.replace('<span id="p2Name"></span>', f'<span id="p2Name">{p2Name}</span>')
             htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
             htmlContent = htmlContent.replace('data_id="0"', f'data_id="{game.gameID}"')
             htmlContent = htmlContent.replace('data_cp="0"', f'data_cp="{playerNum}"')
@@ -106,21 +116,6 @@ class MyHandler(BaseHTTPRequestHandler):
             file_path = 'poolTable.svg'
             with open(file_path, 'w') as file:
                 file.write(shots[-1])
-
-            # print("Current player", playerNum)
-            # if playerNum == 1:
-            #     currentPlayer = game.player2Name
-            #     playerNum = 2
-            # else:
-            #     currentPlayer = game.player1Name
-            #     playerNum = 1
-            # htmlContent = ''
-            # filename = "pool_table.html"
-            # with open(filename, 'rb') as file:
-            #     htmlContent = file.read()
-            # htmlContent = htmlContent.decode('utf-8')
-            #htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
-            #htmlContent = htmlContent.replace('data_cp="1"', f'data_cp="{playerNum}"')
             self.send_response(200)
             self.send_header('Content-type', 'text')
             self.send_header('Content-length', len(content))

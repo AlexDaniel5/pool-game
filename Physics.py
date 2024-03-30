@@ -111,11 +111,7 @@ class RollingBall(phylib.phylib_object):
 
     def svg(self):
         if self.obj.still_ball.number > 8:
-            return """
-            <circle cx="%d" cy="%d" r="%d" fill="%s" />
-            <circle cx="%d" cy="%d" r="%d" fill="%s" />
-            <circle cx="%d" cy="%d" r="%d" fill="%s" />
-            """ % (
+            return """<circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" />""" % (
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  # Adjust SMALLER_RADIUS and color as needed
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]  # Adjust SMALLEST_RADIUS as needed
@@ -292,6 +288,7 @@ class Table( phylib.phylib_table ):
         return new
 
     def cueBall(self, table, xvel, yvel):
+        cueBall = None
         for object in table:
             if isinstance(object, StillBall) and object.obj.still_ball.number == 0:
                 cueBall = object
@@ -315,6 +312,17 @@ class Table( phylib.phylib_table ):
             cueBall.obj.rolling_ball.number = 0
         else:
             raise ValueError("Cue ball not found in the table.")
+
+    def cueBallPocket(self):
+        found = False
+        for obj in self:
+            if obj is not None and obj.type == phylib.PHYLIB_STILL_BALL:
+                if obj.obj.still_ball.number == 0:
+                    found = True
+        if not found:
+            pos = Coordinate(675, 2025)
+            self += StillBall(0, pos)
+
 
 class Database:
     def __init__(self, reset = False):
@@ -543,19 +551,21 @@ class Game:
     
     def createTable(gameName):
         table = Table()
-        # Add all normal balls to table
-        ballNum = 1
+        # Array for order the balls will be added to the table
+        ballNums = [1, 9, 2, 10, 3, 11, 4, 8, 12, 5, 13, 6, 14, 7, 15]
         xSpacing = 61
         xChange = 30.5
         yChange = 52.8
         col = 1
+        index = 0
+        # Add all normal balls to table
         for row in range(5):
             x = 675 - xChange * row
             y = 675 - yChange * row
             for cols in range(col):
                 pos = Coordinate(x, y)
-                table += StillBall(ballNum, pos)
-                ballNum += 1
+                table += StillBall(ballNums[index], pos)
+                index += 1
                 x += xSpacing
             col += 1
         # Cue ball
@@ -598,7 +608,7 @@ class Game:
                 # Append the new table to the tables_list
                 tablesList.append(newTable)
         tablesList.append(oldTable)
-        tableID = self.database.writeTable(oldTable, gameName)
-        self.database.shotFinished(tableID, gameID)
-        #self.database.updateGame(tableID, gameID)
+        oldTable.cueBallPocket() # Add the cueball back to the table if it fell in a hole
+        tableID = self.database.writeTable(oldTable, gameName) # Write the last table to the database
+        self.database.shotFinished(tableID, gameID) # Update game with newest tableID
         return tablesList, oldTable

@@ -1,0 +1,36 @@
+#coordinates {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 5px;
+    border-radius: 5px;
+}
+    html, body {
+    display: flex;
+    justify-content: right;
+    align-items: bottom;
+}
+#poolTable {
+    width: 2000px;
+    height: 1000px;
+    transform: translate(130px, -20px);
+}
+#container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 1400px;
+    padding: 10px;
+}
+#playerNamesContainer {
+    text-align: center;
+    transform: translate(0, -10px);
+}
+#playerNamesContainer h2 {
+    margin: 0;
+}
+#currentTurn {
+    font-weight: bold;
+    transform: translate(0, -10px);
+}
