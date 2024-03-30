@@ -89,7 +89,7 @@ class StillBall( phylib.phylib_object ):
     def svg(self):
         if self.obj.still_ball.number > 8:
             return """
-            <circle cx="%d" cy="%d" r="%d" fill="%s" />
+            <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="stripe"/>
             <circle cx="%d" cy="%d" r="%d" fill="%s" />
             <circle cx="%d" cy="%d" r="%d" fill="%s" />
             """ % (
@@ -97,8 +97,12 @@ class StillBall( phylib.phylib_object ):
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  # Adjust SMALLER_RADIUS and color as needed
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]  # Adjust SMALLEST_RADIUS as needed
             )
+        elif self.obj.still_ball.number == 8:
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="8ball"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
+        elif self.obj.still_ball.number == 0:
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="cueBall"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
         else:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="solid"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
 
 class RollingBall(phylib.phylib_object):
     def __init__(self, number, pos, vel, acc):

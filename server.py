@@ -86,6 +86,7 @@ class MyHandler(BaseHTTPRequestHandler):
             with open(filename, 'rb') as file:
                 htmlContent = file.read()
             htmlContent = htmlContent.decode('utf-8')
+            htmlContent = htmlContent.replace('<span id="gameName"></span>', f'<span id="gameName">{gameName}</span>')
             htmlContent = htmlContent.replace('<span id="p1Name"></span>', f'<span id="p1Name">{p1Name}</span>')
             htmlContent = htmlContent.replace('<span id="p2Name"></span>', f'<span id="p2Name">{p2Name}</span>')
             htmlContent = htmlContent.replace('<span id="currentP"></span>', f'<span id="currentP">{currentPlayer}</span>')
@@ -105,7 +106,7 @@ class MyHandler(BaseHTTPRequestHandler):
             velX = float(formData.get('velX'))
             velY = float(formData.get('velY'))
             gameid = int(formData.get('gameid'))
-            playerNum = int(formData.get('playerNum'))
+            
             game = Physics.Game(gameid)
             shots, table = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
             for i in range(len(shots)):
