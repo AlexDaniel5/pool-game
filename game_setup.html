@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="gameSetupStyle.css">
 </head>
 <body>
-    <form action="/pool_table.html" method="post" onsubmit="setDefaultNames()">
+    <form action="/pool_table.html" method="post" onsubmit="return validateForm()">
         <h1>Jank Pool</h1>
         <label for="p1_name">Player 1 Name:</label>
         <input id="p1_name" type="text" name="p1_name" size="15" maxlength="20">
@@ -32,6 +32,22 @@
             if (gameInput.value.trim() === '') {
                 gameInput.value = 'Jank Pool Game';
             }
+        }
+
+        function validateForm() {
+            var p1Input = document.getElementById('p1_name');
+            var p2Input = document.getElementById('p2_name');
+            if (p1Input.value.trim() === '') {   
+                setDefaultNames();
+                return true;
+            }
+            if (p1Input.value.trim() === p2Input.value.trim()) {
+                alert('Player 1 and Player 2 names cannot be equal.');
+                return false; // Prevent form submission
+            }
+            // If names are not equal, set default names and allow form submission
+            setDefaultNames();
+            return true;
         }
     </script>
 </body>
