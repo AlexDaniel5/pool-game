@@ -7,7 +7,21 @@
     padding: 5px;
     border-radius: 5px;
 }
-    html, body {
+
+.backButton {
+    padding: 5px 10px;
+    background-color: transparent; /* Removes background color */
+    border: 1px solid #000; /* Adds a border for visibility */
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.backButton:hover {
+    background-color: #f0f0f0; /* Changes background color on hover */
+}
+
+html, body {
     display: flex;
     justify-content: right;
     align-items: bottom;

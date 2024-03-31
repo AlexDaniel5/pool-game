@@ -88,14 +88,10 @@ class StillBall( phylib.phylib_object ):
     # add an svg method here
     def svg(self):
         if self.obj.still_ball.number > 8:
-            return """
-            <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="stripe"/>
-            <circle cx="%d" cy="%d" r="%d" fill="%s" />
-            <circle cx="%d" cy="%d" r="%d" fill="%s" />
-            """ % (
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="stripe"/><circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  # Adjust SMALLER_RADIUS and color as needed
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]  # Adjust SMALLEST_RADIUS as needed
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]
             )
         elif self.obj.still_ball.number == 8:
             return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="8ball"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
@@ -115,10 +111,10 @@ class RollingBall(phylib.phylib_object):
 
     def svg(self):
         if self.obj.still_ball.number > 8:
-            return """<circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" />""" % (
+            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" />""" % (
                 self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  # Adjust SMALLER_RADIUS and color as needed
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]  # Adjust SMALLEST_RADIUS as needed
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",
+                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number] 
             )
         else:
             return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
@@ -317,6 +313,7 @@ class Table( phylib.phylib_table ):
         else:
             raise ValueError("Cue ball not found in the table.")
 
+    # Check if the cueball sunk and respawn it
     def cueBallPocket(self):
         found = False
         for obj in self:
@@ -425,7 +422,7 @@ class Database:
         self.cursor = self.conn.cursor()
         self.cursor.execute("INSERT INTO TTable (TIME) VALUES (?)", (table.time,))
         tableID = self.cursor.lastrowid
-        self.cursor.execute("INSERT INTO GAME (TABLEID, GAMENAME) VALUES (?, ?)", (tableID, gameName))
+        #self.cursor.execute("INSERT INTO GAME (TABLEID, GAMENAME) VALUES (?, ?)", (tableID, gameName))
         # Get objects from table and add it to the Ball and BallTable databases
         for object in table:
             # None type cause an error on the elif statements
@@ -511,9 +508,9 @@ class Database:
         self.cursor.close()
         return shotID
 
+    # Insert table ID and shot ID into the tableshot table
     def addTableShot(self, newTableID, shotID):
         self.cursor = self.conn.cursor()
-        # Inser table ID and shot ID into the tableshot table
         self.cursor.execute("""
                         INSERT INTO TABLESHOT (TABLEID, SHOTID)
                         VALUES (?, ?)""", (newTableID, shotID))

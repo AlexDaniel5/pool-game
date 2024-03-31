@@ -70,14 +70,15 @@ function addEventListeners() {
     }
 }
 
+// The animation
 function showShot(data, status) {
-    var tables = data.split(":,:")
+    var tables = data.split("<!---->\n")
     tables.forEach(function(item, index) {
         setTimeout(function(){
             displayFrame(item)
         }, 10 * (index + 1))
     });
-    // Add event listeners to the last svg displayed
+    // After the animation finishes, perform several operations
     setTimeout(function() {
         check8BallSunk();
         let prevSolid = solidBallCount;
@@ -86,7 +87,7 @@ function showShot(data, status) {
         checkNaturalWin(prevSolid, prevStripe);
         if (!isGameOver) {
             addEventListeners();
-            // To check if player gets another turn
+            // To check if the player gets another turn
             if ((player1Side === 'Solids' && currentPlayer === 1 && prevSolid === solidBallCount)
             ||( player1Side === 'Stripes' && currentPlayer === 1 && prevStripe === stripeBallCount)
             || (player2Side === 'Solids' && currentPlayer === 2 && prevSolid === solidBallCount)
@@ -105,6 +106,7 @@ function displayFrame(frame){
     $("#poolTable").html(frame);
 }
 
+// Switch the current player
 function switchCurrentP() {
     var currentPlayerText = $('#currentP').text();
     currentPlayer = (currentPlayer === 1) ? 2 : 1;
@@ -114,8 +116,8 @@ function switchCurrentP() {
     $('#currentP').text(nextPlayerText);
 }
 
+// Check if the 8 ball is present in the SVG
 function check8BallSunk() {
-    // Check if the 8 ball is present in the SVG
     const eightBall = $("circle[data_ball='8ball']");
     if (eightBall.length === 0) {
         if (currentPlayer === 1) {
@@ -127,7 +129,9 @@ function check8BallSunk() {
     }
 }
 
+// Check if the player won by sinking all their side's balls and getting the 8 ball
 function checkNaturalWin(prevSolid, prevStripe) {
+    // If isGameOver is true it means the 8 ball was sunk
     if (isGameOver && ((player1Side === 'Solids' && currentPlayer === 1 && solidBallCount === 0 && solidBallCount === prevSolid)
     ||( player1Side === 'Stripes' && currentPlayer === 1 && stripeBallCount === 0 && stripeBallCount === prevStripe)
     || (player2Side === 'Solids' && currentPlayer === 2 && solidBallCount === 0 && solidBallCount === prevSolid)
@@ -176,5 +180,8 @@ function countBalls() {
     }
 }
 
+function goBack() {
+    window.location.href = 'game_setup.html'; // Redirects to game_setup.html
+}
 // Call loadSVGContent() to fetch and insert SVG content
 loadSVGContent();

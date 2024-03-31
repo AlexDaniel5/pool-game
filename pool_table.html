@@ -8,13 +8,15 @@
     <link rel="stylesheet" href="poolTableStyle.css">
 </head>
 <body>
+  <!-- Game Info -->
   <div id="gameInfo">
     <strong><span id="gameName"></span></strong><br>
     <span id="p1Name"></span>: <span id="player1Side"></span><br>
     <span id="p2Name"></span>: <span id="player2Side"></span><br>
+    <button class="backButton" onclick="goBack()">Back</button>
   </div>
   <div id="container">
-    <!-- Player header -->
+    <!-- Player Header -->
     <div id="playerNamesContainer">
       <h2><span id="p1Name"></span> vs <span id="p2Name"></span></h2>
       <p id="currentTurn">Current Turn: <span id="currentP"></span></p>
@@ -24,7 +26,7 @@
     <div id="game_id" data_id="0"></div>
     <div id="current_turn" data_cp="0"></div>
   </div>
-  <!-- jQuery library -->
+  <!-- jQuery Library -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
   <!-- JavaScript -->
   <script src="poolActions.js"></script>

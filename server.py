@@ -78,9 +78,10 @@ class MyHandler(BaseHTTPRequestHandler):
             else:
                 currentPlayer = p2Name
 
+            # Initalize game
             game = Physics.Game(gameID, gameName, p1Name, p2Name)
 
-            # Open and read the content of the file
+            # Replace the data of the initial html file with the variables given 
             htmlContent = ''
             filename = "pool_table.html"
             with open(filename, 'rb') as file:
@@ -109,14 +110,18 @@ class MyHandler(BaseHTTPRequestHandler):
             
             game = Physics.Game(gameid)
             shots, table = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
+            # Convert all svg files into one long string
             for i in range(len(shots)):
                 svgString = shots[i].svg()
                 shots[i] = svgString
-            content = ":,:".join(shots)
+            # Add a null comment to identify where to split svg files
+            content = "<!---->\n".join(shots)
 
+            # Convert the local svg file to the last svg file in the string so we can add an action listener to it
             file_path = 'poolTable.svg'
             with open(file_path, 'w') as file:
                 file.write(shots[-1])
+
             self.send_response(200)
             self.send_header('Content-type', 'text')
             self.send_header('Content-length', len(content))
