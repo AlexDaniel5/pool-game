@@ -23,3 +23,4 @@ _phylib.so: phylib_wrap.o libphylib.so
 	$(CC) $(CFLAGS) -shared phylib_wrap.o -L. -lphylib -L/usr/lib/python3.11 -lpython3.11 -o _phylib.so 
 
 # export LD_LIBRARY_PATH=`pwd`
+# python3 server.py 58467
