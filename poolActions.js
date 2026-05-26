@@ -39,8 +39,8 @@ function addEventListeners() {
     });
 
     function handleMouseMove(event) {
-        const mouseX = event.pageX;
-        const mouseY = event.pageY;
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
         const distance = Math.hypot(mouseX - startX, mouseY - startY);
         const limitedDistance = Math.min(distance, maxLength);
         const angle = Math.atan2(mouseY - startY, mouseX - startX) + Math.PI;
@@ -53,13 +53,13 @@ function addEventListeners() {
     function handleMouseUp(event) {
         line.remove();
         $(document).off('mousemove', handleMouseMove);
-        const mouseX = event.pageX;
-        const mouseY = event.pageY;
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
         const rawVelX = mouseX - startX;
         const rawVelY = mouseY - startY;
         const scale = 10000;
-        velX = Math.max(-scale, Math.min(scale, Math.round(rawVelX / maxLength * scale)));
-        velY = Math.max(-scale, Math.min(scale, Math.round(rawVelY / maxLength * scale)));
+        velX = Math.max(-scale, Math.min(scale, Math.round(rawVelY / maxLength * scale)));
+        velY = Math.max(-scale, Math.min(scale, Math.round(-rawVelX / maxLength * scale)));
         const gameid = $('#game_id').attr('data_id');
         const postData = {
             velX: -velX,
