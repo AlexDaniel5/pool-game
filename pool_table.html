@@ -10,16 +10,21 @@
 <body>
   <!-- Game Info -->
   <div id="gameInfo">
-    <strong><span id="gameName"></span></strong><br>
-    <span id="p1Name"></span>: <span id="player1Side"></span><br>
-    <span id="p2Name"></span>: <span id="player2Side"></span><br>
-    <button class="backButton" onclick="goBack()">Back</button>
+    <div class="gameTitle"><span id="gameName"></span></div>
+    <button class="backButton" onclick="goBack()">&#8617; New Game</button>
   </div>
   <div id="container">
-    <!-- Player Header -->
+    <!-- Scoreboard -->
     <div id="playerNamesContainer">
-      <h2><span id="p1Name"></span> vs <span id="p2Name"></span></h2>
-      <p id="currentTurn">Current Turn: <span id="currentP"></span></p>
+      <div class="playerCard" id="p1Card">
+        <span class="playerName"><span id="p1Name"></span></span>
+        <span class="playerSide" id="player1Side"></span>
+      </div>
+      <p id="currentTurn">Turn: <span id="currentP"></span></p>
+      <div class="playerCard" id="p2Card">
+        <span class="playerName"><span id="p2Name"></span></span>
+        <span class="playerSide" id="player2Side"></span>
+      </div>
     </div>
     <!-- SVG File -->
     <svg id="poolTable" width="1000" height="500" viewBox="0 0 1400 2750" xmlns="http://www.w3.org/2000/svg"></svg>

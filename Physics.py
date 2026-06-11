@@ -6,8 +6,6 @@ import math
 ################################################################################
 # import constants from phylib to global varaibles
 BALL_RADIUS = phylib.PHYLIB_BALL_RADIUS
-SMALLER_RADIUS = BALL_RADIUS / 1.3
-SMALLEST_RADIUS = BALL_RADIUS / 1.8
 BALL_DIAMETER = 2 * BALL_RADIUS
 HOLE_RADIUS = 2 * BALL_DIAMETER
 TABLE_LENGTH = phylib.PHYLIB_TABLE_LENGTH
@@ -23,10 +21,61 @@ FRAME_RATE = 0.01
 HEADER = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
 "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="700" height="1375" viewBox="-25 -25 1400 2750"
+<svg width="700" height="1375" viewBox="-130 -130 1610 2960"
 xmlns="http://www.w3.org/2000/svg"
 xmlns:xlink="http://www.w3.org/1999/xlink">
-<rect width="1350" height="2700" x="0" y="0" fill="#C0D0C0" />"""
+<defs>
+ <radialGradient id="feltGrad" cx="50%" cy="50%" r="72%">
+  <stop offset="0%" stop-color="#3aa45f"/>
+  <stop offset="65%" stop-color="#2c8a4d"/>
+  <stop offset="100%" stop-color="#1f6b3a"/>
+ </radialGradient>
+ <pattern id="feltTex" width="18" height="18" patternUnits="userSpaceOnUse">
+  <circle cx="4" cy="4" r="1.3" fill="#ffffff" opacity="0.04"/>
+  <circle cx="13" cy="11" r="1.3" fill="#000000" opacity="0.05"/>
+ </pattern>
+ <linearGradient id="woodGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+  <stop offset="0%" stop-color="#6b4226"/>
+  <stop offset="50%" stop-color="#4e2e17"/>
+  <stop offset="100%" stop-color="#35200f"/>
+ </linearGradient>
+ <radialGradient id="pocketGrad" cx="50%" cy="50%" r="50%">
+  <stop offset="0%" stop-color="#000000"/>
+  <stop offset="55%" stop-color="#050505"/>
+  <stop offset="80%" stop-color="#181818"/>
+  <stop offset="100%" stop-color="#303030"/>
+ </radialGradient>
+ <radialGradient id="ballGloss" cx="33%" cy="30%" r="80%">
+  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+  <stop offset="22%" stop-color="#ffffff" stop-opacity="0.3"/>
+  <stop offset="45%" stop-color="#ffffff" stop-opacity="0"/>
+  <stop offset="78%" stop-color="#000000" stop-opacity="0.12"/>
+  <stop offset="100%" stop-color="#000000" stop-opacity="0.4"/>
+ </radialGradient>
+ <radialGradient id="ballShadow" cx="50%" cy="50%" r="50%">
+  <stop offset="0%" stop-color="#000000" stop-opacity="0.35"/>
+  <stop offset="65%" stop-color="#000000" stop-opacity="0.22"/>
+  <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+ </radialGradient>
+</defs>
+<rect x="-130" y="-130" width="1610" height="2960" rx="100" fill="url(#woodGrad)"/>
+<rect x="-127" y="-127" width="1604" height="2954" rx="97" fill="none" stroke="#2a1809" stroke-width="6"/>
+<rect x="-65" y="-65" width="1480" height="2830" rx="45" fill="#0e4f2c"/>
+<rect width="1350" height="2700" x="0" y="0" fill="url(#feltGrad)"/>
+<rect width="1350" height="2700" x="0" y="0" fill="url(#feltTex)"/>
+<rect x="12" y="12" width="1326" height="2676" fill="none" stroke="#000000" stroke-opacity="0.16" stroke-width="24"/>
+<line x1="0" y1="2025" x2="1350" y2="2025" stroke="#ffffff" stroke-opacity="0.1" stroke-width="4"/>
+<circle cx="675" cy="675" r="9" fill="#ffffff" opacity="0.15"/>
+"""
+
+# diamond sight markers on the wood frame
+for _y in (337.5, 675, 1012.5, 1687.5, 2025, 2362.5):
+    for _x in (-97.5, 1447.5):
+        HEADER += '<circle cx="%g" cy="%g" r="8" fill="#d8c79f" opacity="0.85"/>\n' % (_x, _y)
+for _x in (337.5, 675, 1012.5):
+    for _y in (-97.5, 2797.5):
+        HEADER += '<circle cx="%g" cy="%g" r="8" fill="#d8c79f" opacity="0.85"/>\n' % (_x, _y)
+
 FOOTER = """</svg>\n"""
 
 ################################################################################
@@ -34,24 +83,60 @@ FOOTER = """</svg>\n"""
 # if you are curious check this out:  
 # https://billiards.colostate.edu/faq/ball/colors/
 
-BALL_COLOURS = [ 
-    "WHITE",
-    "YELLOW",
-    "BLUE",
-    "RED",
-    "PURPLE",
-    "ORANGE",
-    "GREEN",
-    "BROWN",
-    "BLACK",
-    "KHAKI",
-    "LIGHTBLUE",
-    "PINK",             # no LIGHTRED
-    "MEDIUMPURPLE",     # no LIGHTPURPLE
-    "LIGHTSALMON",      # no LIGHTORANGE
-    "LIGHTGREEN",
-    "SANDYBROWN",       # no LIGHTBROWN 
+BALL_COLOURS = [
+    "#fdfdfa",  # cue
+    "#fdd835",  # 1 yellow
+    "#1f63c4",  # 2 blue
+    "#e23b3b",  # 3 red
+    "#8e3fc4",  # 4 purple
+    "#fb8c00",  # 5 orange
+    "#2fa05a",  # 6 green
+    "#9b4e2e",  # 7 maroon
+    "#1d1d1f",  # 8 black
+    "#fdd835",  # 9 yellow stripe
+    "#1f63c4",  # 10 blue stripe
+    "#e23b3b",  # 11 red stripe
+    "#8e3fc4",  # 12 purple stripe
+    "#fb8c00",  # 13 orange stripe
+    "#2fa05a",  # 14 green stripe
+    "#9b4e2e",  # 15 maroon stripe
     ]
+
+################################################################################
+def ballSVG(number, x, y):
+    """
+    Shared renderer for still and rolling balls: soft drop shadow, base
+    colour (or white base + colour band for stripes), number badge and a
+    gloss overlay that makes the ball read as a sphere.
+    The number text is counter-rotated because the page rotates the table 90.
+    Only the base circle is clickable; everything decorative ignores pointers.
+    """
+    colour = BALL_COLOURS[number]
+    r = BALL_RADIUS
+    parts = []
+    parts.append('<circle cx="%d" cy="%d" r="%d" fill="url(#ballShadow)" pointer-events="none"/>' % (x + 9, y + 9, r + 6))
+    if number == 0:
+        data = 'cueBall'
+    elif number == 8:
+        data = '8ball'
+    elif number > 8:
+        data = 'stripe'
+    else:
+        data = 'solid'
+    if number > 8:
+        parts.append('<circle cx="%d" cy="%d" r="%d" fill="#f8f8f4" data_ball="stripe" data_num="%d"/>' % (x, y, r, number))
+        parts.append('<clipPath id="bc%d"><circle cx="%d" cy="%d" r="%d"/></clipPath>' % (number, x, y, r))
+        parts.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s" clip-path="url(#bc%d)" pointer-events="none"/>'
+                     % (x - int(r * 0.62), y - r, int(r * 1.24), 2 * r, colour, number))
+    else:
+        parts.append('<circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="%s" data_num="%d"/>' % (x, y, r, colour, data, number))
+    if number != 0:
+        fontSize = 17 if number < 10 else 13
+        parts.append('<circle cx="%d" cy="%d" r="13" fill="#f8f8f4" pointer-events="none"/>' % (x, y))
+        parts.append('<text x="%d" y="%d" transform="rotate(-90 %d %d)" font-family="Arial, sans-serif" font-size="%d" font-weight="bold" fill="#1c1c1c" text-anchor="middle" dominant-baseline="central" pointer-events="none">%d</text>'
+                     % (x, y, x, y, fontSize, number))
+    parts.append('<circle cx="%d" cy="%d" r="%d" fill="url(#ballGloss)" pointer-events="none"/>' % (x, y, r))
+    return " " + "".join(parts) + "\n"
 
 ################################################################################
 class Coordinate( phylib.phylib_coord ):
@@ -87,18 +172,7 @@ class StillBall( phylib.phylib_object ):
 
     # add an svg method here
     def svg(self):
-        if self.obj.still_ball.number > 8:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="stripe"/><circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",  
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number]
-            )
-        elif self.obj.still_ball.number == 8:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="8ball"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
-        elif self.obj.still_ball.number == 0:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="cueBall"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
-        else:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" data_ball="solid"/>\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
+        return ballSVG(self.obj.still_ball.number, self.obj.still_ball.pos.x, self.obj.still_ball.pos.y)
 
 class RollingBall(phylib.phylib_object):
     def __init__(self, number, pos, vel, acc):
@@ -110,14 +184,7 @@ class RollingBall(phylib.phylib_object):
         self.__class__ = RollingBall
 
     def svg(self):
-        if self.obj.still_ball.number > 8:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" /><circle cx="%d" cy="%d" r="%d" fill="%s" />""" % (
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number],
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLER_RADIUS, "ghostwhite",
-                self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, SMALLEST_RADIUS, BALL_COLOURS[self.obj.still_ball.number] 
-            )
-        else:
-            return """ <circle cx="%d" cy="%d" r="%d" fill="%s" />\n""" % (self.obj.still_ball.pos.x, self.obj.still_ball.pos.y, BALL_RADIUS, BALL_COLOURS[self.obj.still_ball.number])
+        return ballSVG(self.obj.rolling_ball.number, self.obj.rolling_ball.pos.x, self.obj.rolling_ball.pos.y)
 
 class Hole(phylib.phylib_object):
     def __init__(self, pos):
@@ -129,7 +196,10 @@ class Hole(phylib.phylib_object):
         self.__class__ = Hole
 
     def svg(self):
-        return """ <circle cx="%d" cy="%d" r="%d" fill="black" />\n""" % (self.obj.hole.pos.x, self.obj.hole.pos.y, HOLE_RADIUS)
+        # dark rim ring around a radial-gradient core for a sense of depth
+        return """ <circle cx="%d" cy="%d" r="%d" fill="#1b0f06"/><circle cx="%d" cy="%d" r="%d" fill="url(#pocketGrad)"/>\n""" % (
+            self.obj.hole.pos.x, self.obj.hole.pos.y, HOLE_RADIUS + 12,
+            self.obj.hole.pos.x, self.obj.hole.pos.y, HOLE_RADIUS)
         
 class HCushion(phylib.phylib_object):
     def __init__(self, y):
@@ -141,10 +211,10 @@ class HCushion(phylib.phylib_object):
         self.__class__ = HCushion
     
     def svg(self):
-        ynum = 2700
+        # cushion body plus a lighter highlight strip along the playing edge
         if self.obj.hcushion.y == 0:
-            ynum = -25
-        return """ <rect width="1400" height="25" x="-25" y="%d" fill="darkgreen" />\n""" % (ynum)
+            return """ <rect x="-62" y="-62" width="1474" height="62" rx="20" fill="#11603a"/><rect x="0" y="-9" width="1350" height="9" fill="#3fbf78" opacity="0.4"/>\n"""
+        return """ <rect x="-62" y="2700" width="1474" height="62" rx="20" fill="#11603a"/><rect x="0" y="2700" width="1350" height="9" fill="#3fbf78" opacity="0.4"/>\n"""
 
 class VCushion(phylib.phylib_object):
     def __init__(self, x):
@@ -156,10 +226,10 @@ class VCushion(phylib.phylib_object):
         self.__class__ = VCushion
 
     def svg(self):
-        xnum = 1350
+        # cushion body plus a lighter highlight strip along the playing edge
         if self.obj.vcushion.x == 0:
-            xnum = -25
-        return """ <rect width="25" height="2750" x="%d" y="-25" fill="darkgreen" />\n""" % (xnum)
+            return """ <rect x="-62" y="-62" width="62" height="2824" rx="20" fill="#11603a"/><rect x="-9" y="0" width="9" height="2700" fill="#3fbf78" opacity="0.4"/>\n"""
+        return """ <rect x="1350" y="-62" width="62" height="2824" rx="20" fill="#11603a"/><rect x="1350" y="0" width="9" height="2700" fill="#3fbf78" opacity="0.4"/>\n"""
 
 
 

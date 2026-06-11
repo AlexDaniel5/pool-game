@@ -1,36 +1,75 @@
-#gameInfo {
-    position: fixed;
-    top: 10px;
-    left: 20px;
-    z-index: 9999; /*To avoid conflicts with the SVG file*/
-    background-color: rgba(159, 159, 159, 0.5);
-    padding: 5px;
-    border-radius: 5px;
-}
-
-.backButton {
-    padding: 5px 10px;
-    background-color: transparent; /* Removes background color */
-    border: 1px solid #000; /* Adds a border for visibility */
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 10px;
-}
-
-.backButton:hover {
-    background-color: #f0f0f0; /* Changes background color on hover */
+:root {
+    --accent: #f5b942;
+    --panel-bg: rgba(18, 22, 30, 0.75);
+    --panel-border: rgba(255, 255, 255, 0.1);
+    --text: #e8eaf0;
+    --text-dim: #9aa3b2;
 }
 
 html, body {
     display: flex;
     justify-content: right;
     align-items: bottom;
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(1400px 900px at 50% 25%, #2b3140, #15181f 75%);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
+
+#gameInfo {
+    position: fixed;
+    top: 14px;
+    left: 20px;
+    z-index: 9999; /*To avoid conflicts with the SVG file*/
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(8px);
+    padding: 12px 16px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.gameTitle {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+}
+
+.backButton {
+    display: block;
+    padding: 6px 14px;
+    background: linear-gradient(180deg, #ffd061, var(--accent));
+    color: #2a1d04;
+    font-weight: 600;
+    font-size: 13px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.backButton:hover {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.backButton:active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+}
+
 #poolTable {
     width: 2000px;
     height: 1000px;
     transform: translate(-250px, -200px) rotate(90deg);
+    filter: drop-shadow(0 0 35px rgba(0, 0, 0, 0.55));
+    shape-rendering: geometricPrecision;
 }
+
 #container {
     display: flex;
     flex-direction: column;
@@ -38,14 +77,184 @@ html, body {
     max-width: 1400px;
     padding: 10px;
 }
+
+/* Scoreboard */
 #playerNamesContainer {
-    text-align: center;
-    transform: translate(0, -10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 6px;
 }
-#playerNamesContainer h2 {
-    margin: 0;
+
+.playerCard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 8px 18px;
+    min-width: 130px;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
+
+.playerCard.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 18px rgba(245, 185, 66, 0.35);
+}
+
+.playerName {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.playerSide {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: #1c1405;
+    background: var(--accent);
+    border-radius: 999px;
+    padding: 2px 9px;
+}
+
+.playerSide:empty {
+    display: none;
+}
+
 #currentTurn {
-    font-weight: bold;
-    transform: translate(0, -10px);
+    margin: 0;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text-dim);
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 6px 16px;
+}
+
+#currentTurn.win {
+    color: #1c1405;
+    background: linear-gradient(180deg, #ffd061, var(--accent));
+    border-color: var(--accent);
+    font-size: 15px;
+    animation: winGlow 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes winGlow {
+    from { box-shadow: 0 0 8px rgba(245, 185, 66, 0.4); }
+    to   { box-shadow: 0 0 22px rgba(245, 185, 66, 0.8); }
+}
+
+#currentP {
+    color: var(--text);
+}
+
+/* Cue stick: tip (chalk + ferrule) at the cue ball, shaft fading to the butt */
+.cueStick {
+    display: none;
+    position: absolute;
+    height: 10px;
+    margin-top: -5px;
+    transform-origin: left center;
+    border-radius: 5px;
+    background: linear-gradient(90deg,
+        transparent 0px, transparent 12px,
+        #4d8fd1 12px, #3b6fae 19px,
+        #f1ece0 19px, #e6dfcc 28px,
+        #d9b780 28px, #a8703a 60%, #5c3416 100%);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
+    z-index: 500;
+    pointer-events: none;
+}
+
+.cueStick::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 5px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.35));
+}
+
+/* Aiming guide overlay: trajectory line, cue-ball ring, ghost ball, deflection */
+.aimGuide {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 450;
+}
+
+.aimRing {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.65);
+    stroke-width: 2;
+}
+
+.aimPath {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.85);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.aimGhost {
+    fill: rgba(255, 255, 255, 0.12);
+    stroke: rgba(255, 255, 255, 0.85);
+    stroke-width: 2;
+}
+
+.aimDeflect {
+    stroke: rgba(255, 255, 255, 0.6);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+/* Impact ring when the cue strikes the ball */
+.strikePulse {
+    position: fixed;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.9);
+    transform: translate(-50%, -50%) scale(0.4);
+    animation: strikePulse 0.3s ease-out forwards;
+    pointer-events: none;
+    z-index: 600;
+}
+
+@keyframes strikePulse {
+    to {
+        transform: translate(-50%, -50%) scale(2.2);
+        opacity: 0;
+    }
+}
+
+/* Ripple where a ball drops into a pocket */
+.pocketRipple {
+    position: fixed;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0.9;
+    animation: pocketRipple 0.45s ease-out forwards;
+    pointer-events: none;
+    z-index: 600;
+}
+
+@keyframes pocketRipple {
+    to {
+        transform: translate(-50%, -50%) scale(3);
+        opacity: 0;
+    }
 }

@@ -2,6 +2,10 @@
 Name: Alex Daniel
 Date: March 31, 2024
 
+### Required Dependencies
+- SWIG
+- Clang
+
 ### To Run
 - In the terminal write: make
 - Then type into the terminal: export LD_LIBRARY_PATH=`pwd`
