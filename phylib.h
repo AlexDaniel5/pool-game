@@ -13,8 +13,12 @@
 #define PHYLIB_TABLE_LENGTH (2700.0) // mm
 #define PHYLIB_TABLE_WIDTH (PHYLIB_TABLE_LENGTH/2.0) // mm
 #define PHYLIB_SIM_RATE (0.0001) // s
-#define PHYLIB_VEL_EPSILON (0.01) // mm/s
-#define PHYLIB_DRAG (150.0) // mm/s^2
+#define PHYLIB_VEL_EPSILON (1.0) // mm/s
+#define PHYLIB_DRAG (100.0) // constant rolling resistance, mm/s^2
+#define PHYLIB_DRAG_LINEAR (0.9) // speed-proportional drag, 1/s
+#define PHYLIB_CUSHION_RESTITUTION (0.85) // normal velocity kept after rail bounce
+#define PHYLIB_CUSHION_TANGENT (0.97) // tangential velocity kept after rail bounce
+#define PHYLIB_BALL_RESTITUTION (0.96) // ball-ball coefficient of restitution
 #define PHYLIB_MAX_TIME (600) // s
 #define PHYLIB_MAX_OBJECTS (26)
 

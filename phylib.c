@@ -161,9 +161,11 @@ double phylib_distance(phylib_object *obj1, phylib_object *obj2) {
             return phylib_length(phylib_sub(center, obj2->obj.rolling_ball.pos)) - PHYLIB_BALL_DIAMETER;
         case PHYLIB_STILL_BALL:
             return phylib_length(phylib_sub(center, obj2->obj.still_ball.pos)) - PHYLIB_BALL_DIAMETER;
-        // Between a ball and hole
+        // Between a ball and hole: captured once the ball is entirely over
+        // the pocket mouth, not at first rim contact (so balls skimming the
+        // pocket edge roll past instead of vanishing abruptly)
         case PHYLIB_HOLE:
-            return phylib_length(phylib_sub(center, obj2->obj.hole.pos)) - PHYLIB_HOLE_RADIUS;
+            return phylib_length(phylib_sub(center, obj2->obj.hole.pos)) - (PHYLIB_HOLE_RADIUS - PHYLIB_BALL_RADIUS);
         // Between a ball and a horizontal cushion
         case PHYLIB_HCUSHION:
             return fabs(center.y - obj2->obj.hcushion.y) - PHYLIB_BALL_RADIUS; // fabs is the absolute value for doubles/floats
@@ -176,26 +178,49 @@ double phylib_distance(phylib_object *obj1, phylib_object *obj2) {
 }
 
 // Part 3:
+// Rolls the ball along a straight line under combined drag:
+//   dv/dt = -(PHYLIB_DRAG + PHYLIB_DRAG_LINEAR * v)
+// The constant term models rolling resistance, the linear term models
+// speed-proportional losses so fast shots bleed speed early while soft
+// shots stay gentle. Solved in closed form, so any step size gives the
+// exact same trajectory (the C event loop and the Python animation
+// interpolation both call this and always agree).
 void phylib_roll(phylib_object *new, phylib_object *old, double time) {
     // Check if both objects are rolling balls
     if (new->type != PHYLIB_ROLLING_BALL || old->type != PHYLIB_ROLLING_BALL) {
         return;
     }
-    // Update position
-    new->obj.rolling_ball.pos.x = old->obj.rolling_ball.pos.x + old->obj.rolling_ball.vel.x * time + 0.5 * old->obj.rolling_ball.acc.x * time * time;
-    new->obj.rolling_ball.pos.y = old->obj.rolling_ball.pos.y + old->obj.rolling_ball.vel.y * time + 0.5 * old->obj.rolling_ball.acc.y * time * time;
-    // Update velocity
-    new->obj.rolling_ball.vel.x = old->obj.rolling_ball.vel.x + old->obj.rolling_ball.acc.x * time;
-    new->obj.rolling_ball.vel.y = old->obj.rolling_ball.vel.y + old->obj.rolling_ball.acc.y * time;     
-    // Check if the ball has changed direction  
-    if ((old->obj.rolling_ball.vel.x * new->obj.rolling_ball.vel.x) < 0) {
-        new->obj.rolling_ball.vel.x = 0;
-        new->obj.rolling_ball.acc.x = 0;
+    double v0 = phylib_length(old->obj.rolling_ball.vel);
+    if (v0 < 1e-12) {
+        new->obj.rolling_ball.pos = old->obj.rolling_ball.pos;
+        new->obj.rolling_ball.vel.x = 0.0;
+        new->obj.rolling_ball.vel.y = 0.0;
+        new->obj.rolling_ball.acc.x = 0.0;
+        new->obj.rolling_ball.acc.y = 0.0;
+        return;
     }
-    if ((old->obj.rolling_ball.vel.y * new->obj.rolling_ball.vel.y) < 0) {
-        new->obj.rolling_ball.vel.y = 0;
-        new->obj.rolling_ball.acc.y = 0;
+    double k = PHYLIB_DRAG_LINEAR;
+    double c = PHYLIB_DRAG;
+    // time at which the ball comes to rest
+    double t_stop = log(1.0 + k * v0 / c) / k;
+    double t = time < t_stop ? time : t_stop;
+    double decay = exp(-k * t);
+    double v = (v0 + c / k) * decay - c / k;
+    if (v < 0.0) {
+        v = 0.0;
     }
+    double s = (v0 + c / k) * (1.0 - decay) / k - c * t / k;
+    // drag is anti-parallel to velocity, so the direction never changes
+    double ux = old->obj.rolling_ball.vel.x / v0;
+    double uy = old->obj.rolling_ball.vel.y / v0;
+    new->obj.rolling_ball.pos.x = old->obj.rolling_ball.pos.x + ux * s;
+    new->obj.rolling_ball.pos.y = old->obj.rolling_ball.pos.y + uy * s;
+    new->obj.rolling_ball.vel.x = ux * v;
+    new->obj.rolling_ball.vel.y = uy * v;
+    // acc is informational only (rolling uses vel directly)
+    double a = v > 0.0 ? -(c + k * v) : 0.0;
+    new->obj.rolling_ball.acc.x = ux * a;
+    new->obj.rolling_ball.acc.y = uy * a;
 }
 
 unsigned char phylib_stopped(phylib_object *object) {
@@ -208,17 +233,43 @@ unsigned char phylib_stopped(phylib_object *object) {
     return 0;
 }
 
+// Sets acc anti-parallel to vel (informational; phylib_roll derives drag
+// from velocity directly)
+static void phylib_set_drag_acc(phylib_object *ball) {
+    double speed = phylib_length(ball->obj.rolling_ball.vel);
+    if (speed > PHYLIB_VEL_EPSILON) {
+        double a = -(PHYLIB_DRAG + PHYLIB_DRAG_LINEAR * speed) / speed;
+        ball->obj.rolling_ball.acc.x = ball->obj.rolling_ball.vel.x * a;
+        ball->obj.rolling_ball.acc.y = ball->obj.rolling_ball.vel.y * a;
+    } else {
+        ball->obj.rolling_ball.acc.x = 0.0;
+        ball->obj.rolling_ball.acc.y = 0.0;
+    }
+}
+
 void phylib_bounce(phylib_object **a, phylib_object **b) {
-    // Flip y-axis values for bouncing into a horizontal cushion
+    // Bounce off a horizontal cushion: reflect only if the ball is moving
+    // toward the rail (a ball still overlapping while separating must not
+    // re-bounce, or it sticks and jitters against the cushion)
     if ((*b)->type == PHYLIB_HCUSHION) {
-        (*a)->obj.rolling_ball.vel.y = -(*a)->obj.rolling_ball.vel.y;
-        (*a)->obj.rolling_ball.acc.y = -(*a)->obj.rolling_ball.acc.y;
+        double rel = (*a)->obj.rolling_ball.pos.y - (*b)->obj.hcushion.y;
+        double vy = (*a)->obj.rolling_ball.vel.y;
+        if ((rel > 0.0 && vy < 0.0) || (rel < 0.0 && vy > 0.0)) {
+            (*a)->obj.rolling_ball.vel.y = -vy * PHYLIB_CUSHION_RESTITUTION;
+            (*a)->obj.rolling_ball.vel.x *= PHYLIB_CUSHION_TANGENT;
+            phylib_set_drag_acc(*a);
+        }
         return;
     }
-    // Flip the x-axis values for bouncing into a vertical cushion
+    // Bounce off a vertical cushion
     else if ((*b)->type == PHYLIB_VCUSHION) {
-        (*a)->obj.rolling_ball.vel.x = -(*a)->obj.rolling_ball.vel.x;
-        (*a)->obj.rolling_ball.acc.x = -(*a)->obj.rolling_ball.acc.x;
+        double rel = (*a)->obj.rolling_ball.pos.x - (*b)->obj.vcushion.x;
+        double vx = (*a)->obj.rolling_ball.vel.x;
+        if ((rel > 0.0 && vx < 0.0) || (rel < 0.0 && vx > 0.0)) {
+            (*a)->obj.rolling_ball.vel.x = -vx * PHYLIB_CUSHION_RESTITUTION;
+            (*a)->obj.rolling_ball.vel.y *= PHYLIB_CUSHION_TANGENT;
+            phylib_set_drag_acc(*a);
+        }
         return;
     }
     // Get rid of the rolling ball because it sank into a hole
@@ -227,41 +278,52 @@ void phylib_bounce(phylib_object **a, phylib_object **b) {
         *a = NULL;
         return;
     }
-    // The rolling ball hits a still ball
-    else if ((*b)->type == PHYLIB_STILL_BALL) {
+
+    // Ball-ball collision (b may be still or rolling)
+    phylib_coord b_pos = (*b)->type == PHYLIB_STILL_BALL ?
+        (*b)->obj.still_ball.pos : (*b)->obj.rolling_ball.pos;
+    phylib_coord b_vel = {0.0, 0.0};
+    if ((*b)->type == PHYLIB_ROLLING_BALL) {
+        b_vel = (*b)->obj.rolling_ball.vel;
+    }
+    phylib_coord r_ab = phylib_sub((*a)->obj.rolling_ball.pos, b_pos);
+    double dist = phylib_length(r_ab);
+    if (dist < 1e-12) {
+        return;
+    }
+    // Normal vector from b to a
+    phylib_coord n = {r_ab.x / dist, r_ab.y / dist};
+    phylib_coord v_rel = phylib_sub((*a)->obj.rolling_ball.vel, b_vel);
+    double v_rel_n = phylib_dot_product(v_rel, n);
+    // Only collide if the balls are approaching; overlapping balls that are
+    // already separating get no impulse (prevents sticking and energy gain)
+    if (v_rel_n >= 0.0) {
+        return;
+    }
+    // The rolling ball hits a still ball: set it rolling
+    if ((*b)->type == PHYLIB_STILL_BALL) {
         (*b)->type = PHYLIB_ROLLING_BALL;
-        // Initialize the velocity and acceleration for the new rolling ball
         (*b)->obj.rolling_ball.vel.x = 0.0;
         (*b)->obj.rolling_ball.vel.y = 0.0;
         (*b)->obj.rolling_ball.acc.x = 0.0;
         (*b)->obj.rolling_ball.acc.y = 0.0;
     }
-    // Two rolling balls colliding
-    // Compute the position of a with respect to b
-    phylib_coord r_ab = phylib_sub((*a)->obj.rolling_ball.pos, (*b)->obj.rolling_ball.pos);
-    // Compute the relative velocity of a with respect to b
-    phylib_coord v_rel = phylib_sub((*a)->obj.rolling_ball.vel, (*b)->obj.rolling_ball.vel);
-    // Calculate the normal vector
-    phylib_coord n = {r_ab.x / phylib_length(r_ab), r_ab.y / phylib_length(r_ab)};
-    // Calculate the ratio of the relative velocity
-    double v_rel_n = phylib_dot_product(v_rel, n);
-    // Update velocities based on all the calculations
-    (*a)->obj.rolling_ball.vel.x -= v_rel_n * n.x;
-    (*a)->obj.rolling_ball.vel.y -= v_rel_n * n.y;
-    (*b)->obj.rolling_ball.vel.x += v_rel_n * n.x;
-    (*b)->obj.rolling_ball.vel.y += v_rel_n * n.y;
-    // Compute the balls speed
-    double speed_a = phylib_length((*a)->obj.rolling_ball.vel);
-    double speed_b = phylib_length((*b)->obj.rolling_ball.vel);
-    // Check if the speed is greater than PHYLIB_VEL_EPSILON, if so add drag
-    if (speed_a > PHYLIB_VEL_EPSILON) {
-        (*a)->obj.rolling_ball.acc.x = -(*a)->obj.rolling_ball.vel.x / speed_a * PHYLIB_DRAG;
-        (*a)->obj.rolling_ball.acc.y = -(*a)->obj.rolling_ball.vel.y / speed_a * PHYLIB_DRAG;
+    // Equal-mass impulse with restitution along the contact normal
+    double j = 0.5 * (1.0 + PHYLIB_BALL_RESTITUTION) * v_rel_n;
+    (*a)->obj.rolling_ball.vel.x -= j * n.x;
+    (*a)->obj.rolling_ball.vel.y -= j * n.y;
+    (*b)->obj.rolling_ball.vel.x += j * n.x;
+    (*b)->obj.rolling_ball.vel.y += j * n.y;
+    // Separate any overlap so balls never render intersecting or re-collide
+    double overlap = PHYLIB_BALL_DIAMETER - dist;
+    if (overlap > 0.0) {
+        (*a)->obj.rolling_ball.pos.x += n.x * overlap * 0.5;
+        (*a)->obj.rolling_ball.pos.y += n.y * overlap * 0.5;
+        (*b)->obj.rolling_ball.pos.x -= n.x * overlap * 0.5;
+        (*b)->obj.rolling_ball.pos.y -= n.y * overlap * 0.5;
     }
-    if (speed_b > PHYLIB_VEL_EPSILON) {
-        (*b)->obj.rolling_ball.acc.x = -(*b)->obj.rolling_ball.vel.x / speed_b * PHYLIB_DRAG;
-        (*b)->obj.rolling_ball.acc.y = -(*b)->obj.rolling_ball.vel.y / speed_b * PHYLIB_DRAG;
-    }
+    phylib_set_drag_acc(*a);
+    phylib_set_drag_acc(*b);
 }
 
 // Returns the number of rolling balls on the table

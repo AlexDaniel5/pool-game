@@ -18,7 +18,10 @@ let isGameOver = false;
 function addEventListeners() {
     const cueBall = $("circle[data_ball='cueBall']");
     const line = $('<div class="cueStick"></div>').appendTo('body');
-    const maxLength = 150;
+    const maxLength = 240;   // px of drag for a full-power shot
+    const DEADZONE = 8;      // px below which the shot is cancelled
+    const MIN_SPEED = 300;   // mm/s, gentlest possible tap
+    const MAX_SPEED = 10000; // mm/s, full-power shot
     let startX, startY, velX, velY;
     let aimContext = null;
     let aimGuide = null;
@@ -68,13 +71,20 @@ function addEventListeners() {
         const mouseY = event.clientY;
         const rawVelX = mouseX - startX;
         const rawVelY = mouseY - startY;
-        const scale = 10000;
         const dist = Math.hypot(rawVelX, rawVelY);
-        const t = Math.min(dist / maxLength, 1.0);
-        const easedT = Math.pow(t, 1.5);
-        const factor = dist > 0 ? easedT * scale / dist : 0;
-        velX = Math.max(-scale, Math.min(scale, rawVelY * factor));
-        velY = Math.max(-scale, Math.min(scale, -rawVelX * factor));
+        // Too small a drag is an accidental click, not a shot: cancel and
+        // keep the turn so finesse aiming can restart
+        if (dist < DEADZONE) {
+            line.css({ display: 'none', width: '0px' });
+            return;
+        }
+        // Power scales linearly with pull distance: predictable and easy to
+        // reproduce, with a gentle floor for finesse shots
+        const t = Math.min((dist - DEADZONE) / (maxLength - DEADZONE), 1.0);
+        const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * t;
+        const factor = speed / dist;
+        velX = rawVelY * factor;
+        velY = -rawVelX * factor;
 
         line.css('transition', `width ${STRIKE_MS}ms ease-out, opacity ${STRIKE_MS}ms ease-in`);
         requestAnimationFrame(() => {
