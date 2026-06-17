@@ -109,21 +109,23 @@ class MyHandler(BaseHTTPRequestHandler):
             gameid = int(formData.get('gameid'))
             
             game = Physics.Game(gameid)
-            shots, table = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
+            shots, table, scratched = game.shoot(game.gameName, game.player1Name, game.database.readTable(game.tableID), velX, velY)
             # Convert all svg files into one long string
             for i in range(len(shots)):
                 svgString = shots[i].svg()
                 shots[i] = svgString
             # Add a null comment to identify where to split svg files
-            content = "<!---->\n".join(shots)
+            frames = "<!---->\n".join(shots)
 
             # Convert the local svg file to the last svg file in the string so we can add an action listener to it
             file_path = 'poolTable.svg'
             with open(file_path, 'w') as file:
                 file.write(shots[-1])
 
+            # Return the animation frames plus whether the cue ball was scratched
+            content = json.dumps({'frames': frames, 'scratch': scratched})
             self.send_response(200)
-            self.send_header('Content-type', 'text')
+            self.send_header('Content-type', 'application/json')
             self.send_header('Content-length', len(content))
             self.end_headers()
             self.wfile.write(bytes(content, "utf-8"))

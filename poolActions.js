@@ -103,7 +103,7 @@ function addEventListeners() {
             velY: -velY,
             gameid: gameid,
         };
-        $.post('/shoot', postData, (data, status) => showShot(data, status, STRIKE_MS));
+        $.post('/shoot', postData, (data, status) => showShot(data, status, STRIKE_MS), 'json');
     }
 }
 
@@ -308,7 +308,8 @@ function spawnPocketRipples(prev, curr) {
 
 // The animation
 function showShot(data, status, delay = 0) {
-    const frames = data.split("<!---->\n");
+    const frames = data.frames.split("<!---->\n");
+    const scratched = data.scratch;
     const FRAME_MS = 10;
     let prevPositions = recordBallPositions();
     let startTime = null;
@@ -320,7 +321,7 @@ function showShot(data, status, delay = 0) {
         let prevSolid = solidBallCount;
         let prevStripe = stripeBallCount;
         countBalls();
-        checkNaturalWin(prevSolid, prevStripe);
+        checkNaturalWin(prevSolid, prevStripe, scratched);
         if (!isGameOver) {
             addEventListeners();
             // To check if the player gets another turn
@@ -394,9 +395,11 @@ function check8BallSunk() {
 }
 
 // Check if the player won by sinking all their side's balls and getting the 8 ball
-function checkNaturalWin(prevSolid, prevStripe) {
-    // If isGameOver is true it means the 8 ball was sunk
-    if (isGameOver && ((player1Side === 'Solids' && currentPlayer === 1 && solidBallCount === 0 && solidBallCount === prevSolid)
+function checkNaturalWin(prevSolid, prevStripe, cueScratched) {
+    // If isGameOver is true it means the 8 ball was sunk. Scratching (potting the
+    // cue ball) on the 8-ball shot is a loss, so leave the opponent win that
+    // check8BallSunk already set instead of awarding it to the current player.
+    if (!cueScratched && isGameOver && ((player1Side === 'Solids' && currentPlayer === 1 && solidBallCount === 0 && solidBallCount === prevSolid)
     ||( player1Side === 'Stripes' && currentPlayer === 1 && stripeBallCount === 0 && stripeBallCount === prevStripe)
     || (player2Side === 'Solids' && currentPlayer === 2 && solidBallCount === 0 && solidBallCount === prevSolid)
     ||( player2Side === 'Stripes' && currentPlayer === 2 && stripeBallCount === 0 && stripeBallCount === prevStripe))) {

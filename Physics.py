@@ -385,6 +385,7 @@ class Table( phylib.phylib_table ):
 
     # Check if the cueball sunk and respawn it
     def cueBallPocket(self):
+        # Respawn the cue ball if it was pocketed; return True if a scratch happened.
         found = False
         for obj in self:
             if obj is not None and obj.type == phylib.PHYLIB_STILL_BALL:
@@ -393,6 +394,7 @@ class Table( phylib.phylib_table ):
         if not found:
             pos = Coordinate(675, 2025)
             self += StillBall(0, pos)
+        return not found
 
 
 class Database:
@@ -679,7 +681,7 @@ class Game:
                 # Append the new table to the tables_list
                 tablesList.append(newTable)
         tablesList.append(oldTable)
-        oldTable.cueBallPocket() # Add the cueball back to the table if it fell in a hole
+        scratched = oldTable.cueBallPocket() # Add the cueball back to the table if it fell in a hole
         tableID = self.database.writeTable(oldTable, gameName) # Write the last table to the database
         self.database.shotFinished(tableID, gameID) # Update game with newest tableID
-        return tablesList, oldTable
+        return tablesList, oldTable, scratched
