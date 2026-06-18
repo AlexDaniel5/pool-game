@@ -8,6 +8,10 @@ import math
 BALL_RADIUS = phylib.PHYLIB_BALL_RADIUS
 BALL_DIAMETER = 2 * BALL_RADIUS
 HOLE_RADIUS = 2 * BALL_DIAMETER
+# Visible pocket opening: 10% smaller than HOLE_RADIUS. The capture hitbox in
+# phylib.c (ball captured when its center is within POCKET_RADIUS of the hole)
+# is kept equal to this so the drawn hole and the hitbox line up exactly.
+POCKET_RADIUS = HOLE_RADIUS * 0.9
 TABLE_LENGTH = phylib.PHYLIB_TABLE_LENGTH
 TABLE_WIDTH = TABLE_LENGTH / 2.0
 SIM_RATE = phylib.PHYLIB_SIM_RATE
@@ -198,8 +202,8 @@ class Hole(phylib.phylib_object):
     def svg(self):
         # dark rim ring around a radial-gradient core for a sense of depth
         return """ <circle cx="%d" cy="%d" r="%d" fill="#1b0f06"/><circle cx="%d" cy="%d" r="%d" fill="url(#pocketGrad)"/>\n""" % (
-            self.obj.hole.pos.x, self.obj.hole.pos.y, HOLE_RADIUS + 12,
-            self.obj.hole.pos.x, self.obj.hole.pos.y, HOLE_RADIUS)
+            self.obj.hole.pos.x, self.obj.hole.pos.y, POCKET_RADIUS + 8,
+            self.obj.hole.pos.x, self.obj.hole.pos.y, POCKET_RADIUS)
         
 class HCushion(phylib.phylib_object):
     def __init__(self, y):

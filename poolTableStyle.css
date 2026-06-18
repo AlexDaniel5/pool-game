@@ -12,9 +12,15 @@ html, body {
     align-items: bottom;
     margin: 0;
     min-height: 100vh;
-    background: radial-gradient(1400px 900px at 50% 25%, #2b3140, #15181f 75%);
     color: var(--text);
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Paint the background on the root only. body is a shrink-to-content flex
+   item, so giving it the gradient too produced a second radial centered on
+   its narrower box — the visible seam on the left. */
+html {
+    background: radial-gradient(1400px 900px at 50% 25%, #2b3140, #15181f 75%);
 }
 
 #gameInfo {
@@ -65,7 +71,10 @@ html, body {
 #poolTable {
     width: 2000px;
     height: 1000px;
-    transform: translate(-250px, -200px) rotate(90deg);
+    /* scale() at the end enlarges the table; it shares the default center
+       transform-origin with rotate, so the table grows in place from the
+       original position. Tune this factor to taste. */
+    transform: translate(-330px, 0px) rotate(90deg) scale(1.4);
     filter: drop-shadow(0 0 35px rgba(0, 0, 0, 0.55));
     shape-rendering: geometricPrecision;
 }

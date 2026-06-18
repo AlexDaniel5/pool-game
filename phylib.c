@@ -161,11 +161,12 @@ double phylib_distance(phylib_object *obj1, phylib_object *obj2) {
             return phylib_length(phylib_sub(center, obj2->obj.rolling_ball.pos)) - PHYLIB_BALL_DIAMETER;
         case PHYLIB_STILL_BALL:
             return phylib_length(phylib_sub(center, obj2->obj.still_ball.pos)) - PHYLIB_BALL_DIAMETER;
-        // Between a ball and hole: captured once the ball is entirely over
-        // the pocket mouth, not at first rim contact (so balls skimming the
-        // pocket edge roll past instead of vanishing abruptly)
+        // Between a ball and hole: captured once the ball's center reaches the
+        // visible pocket opening (0.9*PHYLIB_HOLE_RADIUS, matching POCKET_RADIUS
+        // in Physics.py) so the hitbox lines up with the drawn hole instead of
+        // being a smaller, deceiving circle.
         case PHYLIB_HOLE:
-            return phylib_length(phylib_sub(center, obj2->obj.hole.pos)) - (PHYLIB_HOLE_RADIUS - PHYLIB_BALL_RADIUS);
+            return phylib_length(phylib_sub(center, obj2->obj.hole.pos)) - (0.9 * PHYLIB_HOLE_RADIUS);
         // Between a ball and a horizontal cushion
         case PHYLIB_HCUSHION:
             return fabs(center.y - obj2->obj.hcushion.y) - PHYLIB_BALL_RADIUS; // fabs is the absolute value for doubles/floats
