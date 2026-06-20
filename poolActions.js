@@ -14,97 +14,145 @@ let player1Side = '';
 let player2Side = '';
 let winningPlayer = '';
 let isGameOver = false;
-// Event listener for pool table actions
+// ---------------------------------------------------------------------------
+// Shot input. The cue continuously aims at the cursor (the cue ball will
+// travel toward the cursor). A plain click does nothing; to shoot you hold the
+// mouse button and drag back toward the ball to wind up power, then release.
+
+const maxLength = 240;   // px of pull-back for a full-power shot
+const DEADZONE = 8;      // px below which the shot is cancelled
+const MIN_SPEED = 300;   // mm/s, gentlest possible tap
+const MAX_SPEED = 10000; // mm/s, full-power shot
+const STRIKE_MS = 80;
+const CUE_LEN = 220;     // px length of the rendered cue stick
+const CUE_GAP = 4;       // px gap between the cue tip and the ball surface
+
+let cueStick = null;     // the cue <div>, created once
+let guide = null;        // the aim-guide SVG overlay, created once
+let aimReady = false;    // document-level listeners bound?
+let charging = false;    // is the button held and winding up power?
+let lockedAim = null;    // {dx, dy, downX, downY, pull} captured at mousedown
+let animating = false;   // is a shot currently playing back?
+let lastMouseX = null;   // last cursor position, for refreshing aim after a shot
+let lastMouseY = null;
+
+// Current cue ball center/radius in screen space, or null if it is off the table
+function getCueBall() {
+    const el = document.querySelector("#poolTable circle[data_ball='cueBall']");
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    return { el: el, cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, r: rect.width / 2 };
+}
+
+// Build the cue stick and aim guide once, then keep them for the whole game
+function ensureAimUI() {
+    if (cueStick) return;
+    cueStick = $('<div class="cueStick"></div>').appendTo('body');
+    guide = buildGuide();
+}
+
+// Called on load and after every shot to (re)enable aiming for the new layout
 function addEventListeners() {
-    const cueBall = $("circle[data_ball='cueBall']");
-    const line = $('<div class="cueStick"></div>').appendTo('body');
-    const maxLength = 240;   // px of drag for a full-power shot
-    const DEADZONE = 8;      // px below which the shot is cancelled
-    const MIN_SPEED = 300;   // mm/s, gentlest possible tap
-    const MAX_SPEED = 10000; // mm/s, full-power shot
-    let startX, startY, velX, velY;
-    let aimContext = null;
-    let aimGuide = null;
+    ensureAimUI();
+    if (!aimReady) {
+        $(document)
+            .on('mousemove.pool', onAimMove)
+            .on('mousedown.pool', onAimDown)
+            .on('mouseup.pool', onAimUp);
+        aimReady = true;
+    }
+    animating = false;
+    charging = false;
+    lockedAim = null;
+    refreshAim();
+}
 
-    cueBall.on('mousedown', (event) => {
-        const cueBallRect = cueBall[0].getBoundingClientRect();
-        const cueBallCenterX = cueBallRect.left + cueBallRect.width / 2;
-        const cueBallCenterY = cueBallRect.top + cueBallRect.height / 2;
-        startX = cueBallCenterX;
-        startY = cueBallCenterY;
-        line.css({
-            display: 'block',
-            width: '0px',
-            left: cueBallCenterX + 'px',
-            top: cueBallCenterY + 'px',
-        });
-        aimContext = buildAimContext(cueBall[0]);
-        aimGuide = createAimGuide(aimContext);
-        $(document).on('mousemove', handleMouseMove);
-        $(document).one('mouseup', handleMouseUp);
-    });
+// Redraw the aim using the last known cursor position (e.g. after a shot, so the
+// player sees the new aim without having to wiggle the mouse first)
+function refreshAim() {
+    if (lastMouseX === null) return;
+    onAimMove({ clientX: lastMouseX, clientY: lastMouseY, _synthetic: true });
+}
 
-    function handleMouseMove(event) {
-        const mouseX = event.clientX;
-        const mouseY = event.clientY;
-        const distance = Math.hypot(mouseX - startX, mouseY - startY);
-        const limitedDistance = Math.min(distance, maxLength);
-        // the cue sits on the drag side of the ball, striking toward the shot:
-        // the shot travels from the mouse through the cue ball
-        const angle = Math.atan2(mouseY - startY, mouseX - startX);
-        line.css({
-            width: limitedDistance + 'px',
-            transform: `rotate(${angle}rad)`,
-        });
-        updateAimGuide(aimGuide, aimContext, mouseX, mouseY);
+function onAimMove(event) {
+    if (!event._synthetic) {
+        lastMouseX = event.clientX;
+        lastMouseY = event.clientY;
+    }
+    if (isGameOver || animating) { hideAim(); return; }
+    const cb = getCueBall();
+    if (!cb) { hideAim(); return; }
+
+    let dx, dy;
+    if (charging && lockedAim) {
+        // aim is frozen; the drag only winds up power. "Pull" is how far the
+        // cursor has moved back toward the ball, i.e. opposite the shot direction
+        dx = lockedAim.dx;
+        dy = lockedAim.dy;
+        const mvx = event.clientX - lockedAim.downX;
+        const mvy = event.clientY - lockedAim.downY;
+        const pull = -(mvx * dx + mvy * dy);
+        lockedAim.pull = Math.max(0, Math.min(pull, maxLength));
+    } else {
+        // free aim: the shot points from the cue ball toward the cursor
+        dx = event.clientX - cb.cx;
+        dy = event.clientY - cb.cy;
+        const len = Math.hypot(dx, dy);
+        if (len < 1) return;
+        dx /= len;
+        dy /= len;
     }
 
-    const STRIKE_MS = 80;
+    const ctx = buildAimContext(cb.el);
+    updateAimGuide(guide, ctx, dx, dy);
+    placeCue(cb, dx, dy, charging && lockedAim ? lockedAim.pull : 0);
+}
 
-    function handleMouseUp(event) {
-        $(document).off('mousemove', handleMouseMove);
-        if (aimGuide) {
-            aimGuide.svg.remove();
-            aimGuide = null;
-        }
-        const mouseX = event.clientX;
-        const mouseY = event.clientY;
-        const rawVelX = mouseX - startX;
-        const rawVelY = mouseY - startY;
-        const dist = Math.hypot(rawVelX, rawVelY);
-        // Too small a drag is an accidental click, not a shot: cancel and
-        // keep the turn so finesse aiming can restart
-        if (dist < DEADZONE) {
-            line.css({ display: 'none', width: '0px' });
-            return;
-        }
-        // Power scales linearly with pull distance: predictable and easy to
-        // reproduce, with a gentle floor for finesse shots
-        const t = Math.min((dist - DEADZONE) / (maxLength - DEADZONE), 1.0);
-        const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * t;
-        const factor = speed / dist;
-        velX = rawVelY * factor;
-        velY = -rawVelX * factor;
+function onAimDown(event) {
+    if (event.button !== 0) return;
+    if (isGameOver || animating) return;
+    if ($(event.target).closest('#gameInfo').length) return; // ignore UI clicks
+    const cb = getCueBall();
+    if (!cb) return;
+    let dx = event.clientX - cb.cx;
+    let dy = event.clientY - cb.cy;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+    dx /= len;
+    dy /= len;
+    charging = true;
+    lockedAim = { dx: dx, dy: dy, downX: event.clientX, downY: event.clientY, pull: 0 };
+}
 
-        line.css('transition', `width ${STRIKE_MS}ms ease-out, opacity ${STRIKE_MS}ms ease-in`);
-        requestAnimationFrame(() => {
-            line.css({ width: '0px', opacity: '0' });
-        });
-        setTimeout(() => {
-            line.remove();
-            if (t > 0.05) {
-                strikePulse(startX, startY);
-            }
-        }, STRIKE_MS);
-
-        const gameid = $('#game_id').attr('data_id');
-        const postData = {
-            velX: -velX,
-            velY: -velY,
-            gameid: gameid,
-        };
-        $.post('/shoot', postData, (data, status) => showShot(data, status, STRIKE_MS), 'json');
+function onAimUp(event) {
+    if (!charging) return;
+    charging = false;
+    const la = lockedAim;
+    const pull = la ? la.pull : 0;
+    lockedAim = null;
+    // Too little pull-back is an accidental click, not a shot: keep the turn so
+    // the player can re-aim
+    if (!la || pull < DEADZONE) {
+        refreshAim();
+        return;
     }
+    // Power scales linearly with pull distance, with a gentle floor for finesse
+    const t = Math.min((pull - DEADZONE) / (maxLength - DEADZONE), 1.0);
+    const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * t;
+    // Map the screen-space shot direction into physics space (the table is
+    // rotated 90deg in CSS, hence the (dy, -dx) swap)
+    const velX = la.dy * speed;
+    const velY = -la.dx * speed;
+
+    const cb = getCueBall();
+    if (cb) strikeCue(cb, la.dx, la.dy);
+    else if (cueStick) cueStick.css({ display: 'none' });
+    hideGuide();
+    animating = true;
+
+    const gameid = $('#game_id').attr('data_id');
+    const postData = { velX: velX, velY: velY, gameid: gameid };
+    $.post('/shoot', postData, (data, status) => showShot(data, status, STRIKE_MS), 'json');
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +195,7 @@ function buildAimContext(cueEl) {
 }
 
 // Full-viewport SVG overlay holding the guide elements
-function createAimGuide(ctx) {
+function buildGuide() {
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'aimGuide');
     function add(tag, cls) {
@@ -157,19 +205,56 @@ function createAimGuide(ctx) {
         svg.appendChild(el);
         return el;
     }
-    const guide = {
+    const g = {
         svg: svg,
         ring: add('circle', 'aimRing'),
         path: add('polyline', 'aimPath'),
+        cueDeflect: add('line', 'aimCueDeflect'),
         ghost: add('circle', 'aimGhost'),
         deflect: add('line', 'aimDeflect'),
     };
-    guide.ring.setAttribute('cx', ctx.cx);
-    guide.ring.setAttribute('cy', ctx.cy);
-    guide.ring.setAttribute('r', ctx.r + 4);
-    guide.ring.removeAttribute('visibility');
     document.body.appendChild(svg);
-    return guide;
+    return g;
+}
+
+// Draw the cue stick behind the ball (opposite the cursor), tip toward the
+// shot. `pull` slides it back along the shaft to show the wind-up.
+function placeCue(cb, dx, dy, pull) {
+    const anchorX = cb.cx - dx * (cb.r + CUE_GAP);
+    const anchorY = cb.cy - dy * (cb.r + CUE_GAP);
+    const angle = Math.atan2(-dy, -dx); // shaft runs from tip back to the butt
+    cueStick.css({
+        display: 'block',
+        opacity: '',
+        transition: 'none',
+        width: CUE_LEN + 'px',
+        left: anchorX + 'px',
+        top: anchorY + 'px',
+        transform: `rotate(${angle}rad) translateX(${pull}px)`,
+    });
+}
+
+// Lunge the cue into the ball, then fade it out
+function strikeCue(cb, dx, dy) {
+    const angle = Math.atan2(-dy, -dx);
+    cueStick.css('transition', `transform ${STRIKE_MS}ms ease-out, opacity ${STRIKE_MS}ms ease-in`);
+    requestAnimationFrame(() => {
+        cueStick.css({ transform: `rotate(${angle}rad) translateX(${-cb.r}px)`, opacity: '0' });
+    });
+    setTimeout(() => {
+        cueStick.css({ display: 'none', opacity: '', transition: 'none' });
+        strikePulse(cb.cx, cb.cy);
+    }, STRIKE_MS);
+}
+
+function hideGuide() {
+    if (!guide) return;
+    ['ring', 'path', 'ghost', 'deflect', 'cueDeflect'].forEach(k => guide[k].setAttribute('visibility', 'hidden'));
+}
+
+function hideAim() {
+    if (cueStick) cueStick.css({ display: 'none' });
+    hideGuide();
 }
 
 // Cast the cue ball's path from its center along (dirX, dirY), stopping at
@@ -230,20 +315,14 @@ function traceShotPath(ctx, dirX, dirY) {
     return { points: points, hitBall: hitBall, hitX: px, hitY: py };
 }
 
-function updateAimGuide(guide, ctx, mouseX, mouseY) {
+// dirX/dirY: the unit screen-space direction the cue ball will travel
+function updateAimGuide(guide, ctx, dirX, dirY) {
     if (!guide) return;
-    // the shot travels from the mouse through the cue ball
-    let dirX = ctx.cx - mouseX;
-    let dirY = ctx.cy - mouseY;
-    const dragLen = Math.hypot(dirX, dirY);
-    if (dragLen < 3) {
-        guide.path.setAttribute('visibility', 'hidden');
-        guide.ghost.setAttribute('visibility', 'hidden');
-        guide.deflect.setAttribute('visibility', 'hidden');
-        return;
-    }
-    dirX /= dragLen;
-    dirY /= dragLen;
+    // ring around the cue ball follows it as it moves between shots
+    guide.ring.setAttribute('cx', ctx.cx);
+    guide.ring.setAttribute('cy', ctx.cy);
+    guide.ring.setAttribute('r', ctx.r + 4);
+    guide.ring.removeAttribute('visibility');
 
     const trace = traceShotPath(ctx, dirX, dirY);
     guide.path.setAttribute('points', trace.points.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '));
@@ -255,22 +334,48 @@ function updateAimGuide(guide, ctx, mouseX, mouseY) {
         guide.ghost.setAttribute('cy', trace.hitY.toFixed(1));
         guide.ghost.setAttribute('r', ctx.r);
         guide.ghost.removeAttribute('visibility');
-        // object ball departs along the line from the ghost center through its own
+        // n = impact line (ghost center -> object ball center). On contact the
+        // object ball leaves along n and the cue ball along the tangent. The
+        // momentum split is the cut angle: object ball gets cos(theta), cue ball
+        // gets sin(theta), so the two guide lines lengthen/shorten oppositely.
         const b = trace.hitBall;
         let ndx = b.x - trace.hitX;
         let ndy = b.y - trace.hitY;
         const nLen = Math.hypot(ndx, ndy) || 1;
         ndx /= nLen;
         ndy /= nLen;
-        const DEFLECT_LEN = 70;
+        const MAX_LINE = 95;
+        // object ball departs along n, length ~ cos(theta) (longest on a full hit)
+        const cosT = Math.min(1, Math.abs(dirX * ndx + dirY * ndy));
+        const objLen = MAX_LINE * cosT;
         guide.deflect.setAttribute('x1', (b.x + ndx * b.r).toFixed(1));
         guide.deflect.setAttribute('y1', (b.y + ndy * b.r).toFixed(1));
-        guide.deflect.setAttribute('x2', (b.x + ndx * (b.r + DEFLECT_LEN)).toFixed(1));
-        guide.deflect.setAttribute('y2', (b.y + ndy * (b.r + DEFLECT_LEN)).toFixed(1));
+        guide.deflect.setAttribute('x2', (b.x + ndx * (b.r + objLen)).toFixed(1));
+        guide.deflect.setAttribute('y2', (b.y + ndy * (b.r + objLen)).toFixed(1));
         guide.deflect.removeAttribute('visibility');
+        // cue ball carries on along the tangent, length ~ sin(theta) (zero on a
+        // full hit, longest on a thin cut)
+        const dot = dirX * ndx + dirY * ndy;
+        let cdx = dirX - dot * ndx;
+        let cdy = dirY - dot * ndy;
+        const sinT = Math.hypot(cdx, cdy); // = sin(theta) since dir is a unit vector
+        if (sinT > 1e-3) {
+            cdx /= sinT;
+            cdy /= sinT;
+            const CUE_MAX_LINE = 38; // cue ball line is kept much shorter
+            const cueLen = CUE_MAX_LINE * Math.min(1, sinT);
+            guide.cueDeflect.setAttribute('x1', trace.hitX.toFixed(1));
+            guide.cueDeflect.setAttribute('y1', trace.hitY.toFixed(1));
+            guide.cueDeflect.setAttribute('x2', (trace.hitX + cdx * cueLen).toFixed(1));
+            guide.cueDeflect.setAttribute('y2', (trace.hitY + cdy * cueLen).toFixed(1));
+            guide.cueDeflect.removeAttribute('visibility');
+        } else {
+            guide.cueDeflect.setAttribute('visibility', 'hidden');
+        }
     } else {
         guide.ghost.setAttribute('visibility', 'hidden');
         guide.deflect.setAttribute('visibility', 'hidden');
+        guide.cueDeflect.setAttribute('visibility', 'hidden');
     }
 }
 

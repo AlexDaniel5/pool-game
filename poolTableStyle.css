@@ -221,9 +221,12 @@ html {
     stroke-width: 2;
 }
 
-.aimDeflect {
-    stroke: rgba(255, 255, 255, 0.6);
-    stroke-width: 2;
+/* Post-contact guides: object ball (aimDeflect) and cue ball (aimCueDeflect)
+   travel lines. Same colour; their lengths vary with the cut angle. */
+.aimDeflect,
+.aimCueDeflect {
+    stroke: rgba(255, 255, 255, 0.9);
+    stroke-width: 2.5;
     stroke-linecap: round;
 }
 
