@@ -261,7 +261,12 @@ function hideAim() {
 // the first object ball or reflecting off cushions (up to MAX_BOUNCES)
 function traceShotPath(ctx, dirX, dirY) {
     const MAX_BOUNCES = 2;
-    let budget = 2500;
+    // cap the guide at roughly one table length so it stays short instead of
+    // skittering across the whole surface and off several cushions
+    let budget = Math.max(ctx.bounds.maxX - ctx.bounds.minX, ctx.bounds.maxY - ctx.bounds.minY);
+    // but if a ball sits just past the cap, extend to it so a near-hit still
+    // shows the contact (ghost ball + deflection) instead of stopping short
+    const BALL_GRACE = ctx.r * 6;
     let px = ctx.cx;
     let py = ctx.cy;
     const points = [[px + dirX * (ctx.r + 3), py + dirY * (ctx.r + 3)]];
@@ -293,7 +298,7 @@ function traceShotPath(ctx, dirX, dirY) {
         }
         tWall = Math.max(0, tWall);
 
-        if (tBall <= Math.min(tWall, budget)) {
+        if (tBall <= tWall && tBall <= budget + BALL_GRACE) {
             px += dirX * tBall;
             py += dirY * tBall;
             points.push([px, py]);
