@@ -270,3 +270,48 @@ html {
         opacity: 0;
     }
 }
+
+/* While placing the cue ball, hide the server's legacy auto-respawned ball */
+body.placingCue .cueBallGroup {
+    visibility: hidden;
+}
+
+/* Ball-in-hand: draggable cue-ball preview that follows the cursor */
+.ghostCue {
+    display: none;
+    position: fixed;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffffff, #d9d4c6 70%, #b8b2a2);
+    border: 2px dashed rgba(60, 60, 60, 0.7);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: 650;
+}
+
+/* The spot is blocked by another ball: warn instead of allowing the drop */
+.ghostCue.blocked {
+    background: radial-gradient(circle at 35% 35%, #ffb3b3, #e06464 70%, #b23b3b);
+    border-color: rgba(150, 0, 0, 0.85);
+    opacity: 0.7;
+}
+
+/* "Ball in hand" hint banner */
+.binhBanner {
+    display: none;
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 18px;
+    background: rgba(20, 20, 24, 0.88);
+    color: #f1ece0;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    z-index: 9999;
+}

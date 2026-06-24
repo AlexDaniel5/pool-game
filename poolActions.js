@@ -35,6 +35,13 @@ let lockedAim = null;    // {dx, dy, downX, downY, pull} captured at mousedown
 let animating = false;   // is a shot currently playing back?
 let lastMouseX = null;   // last cursor position, for refreshing aim after a shot
 let lastMouseY = null;
+let placingCue = false;  // ball-in-hand: is the player positioning the cue ball?
+let ghostCue = null;     // the draggable cue-ball preview <div>, created once
+
+// Physics-space dimensions of the playing surface (must match phylib.h)
+const TABLE_LENGTH = 2700; // mm, the long axis (physics y)
+const TABLE_WIDTH = 1350;  // mm, the short axis (physics x)
+const BALL_RADIUS = 28.5;  // mm
 
 // Current cue ball center/radius in screen space, or null if it is off the table
 function getCueBall() {
@@ -79,7 +86,7 @@ function onAimMove(event) {
         lastMouseX = event.clientX;
         lastMouseY = event.clientY;
     }
-    if (isGameOver || animating) { hideAim(); return; }
+    if (isGameOver || animating || placingCue) { hideAim(); return; }
     const cb = getCueBall();
     if (!cb) { hideAim(); return; }
 
@@ -110,7 +117,7 @@ function onAimMove(event) {
 
 function onAimDown(event) {
     if (event.button !== 0) return;
-    if (isGameOver || animating) return;
+    if (isGameOver || animating || placingCue) return;
     if ($(event.target).closest('#gameInfo').length) return; // ignore UI clicks
     const cb = getCueBall();
     if (!cb) return;
@@ -255,6 +262,115 @@ function hideGuide() {
 function hideAim() {
     if (cueStick) cueStick.css({ display: 'none' });
     hideGuide();
+}
+
+// ---------------------------------------------------------------------------
+// Ball-in-hand placement (after a scratch). The incoming player moves the cue
+// ball to any open spot on the felt and clicks to drop it; normal aiming is
+// suspended (placingCue) until the ball is placed.
+
+let binhBanner = null; // the "ball in hand" hint, created once
+
+// Convert a screen point to physics/SVG coordinates. The table is rotated 90deg
+// clockwise in CSS, so the felt's screen height spans physics x (TABLE_WIDTH)
+// and its screen width spans physics y (TABLE_LENGTH). This is the position
+// analogue of the (dy, -dx) swap the aim code uses for shot direction.
+function screenToPhysics(screenX, screenY) {
+    const felt = $('#poolTable rect[fill="url(#feltGrad)"]')[0].getBoundingClientRect();
+    const s = (felt.bottom - felt.top) / TABLE_WIDTH; // screen px per mm
+    return {
+        x: (screenY - felt.top) / s,
+        y: (felt.right - screenX) / s,
+        s: s,
+        felt: felt,
+    };
+}
+
+function enterBallInHand() {
+    placingCue = true;
+    animating = false;
+    charging = false;
+    lockedAim = null;
+    // hide the cue ball the server auto-respawned at its legacy spot; the
+    // preview ghost stands in for it until the player drops it
+    $('body').addClass('placingCue');
+    hideAim();
+    ensureAimUI();
+    if (!ghostCue) ghostCue = $('<div class="ghostCue"></div>').appendTo('body');
+    if (!binhBanner) binhBanner = $('<div class="binhBanner"></div>').appendTo('body');
+    binhBanner.text('Ball in hand — move the mouse and click to place the cue ball')
+        .css('display', 'block');
+    // ensure the document aim listeners exist (they no-op while placingCue);
+    // then add dedicated placement listeners
+    if (!aimReady) {
+        $(document).on('mousemove.pool', onAimMove).on('mousedown.pool', onAimDown).on('mouseup.pool', onAimUp);
+        aimReady = true;
+    }
+    $(document).on('mousemove.place', onPlaceMove).on('click.place', onPlaceClick);
+    updateGhost(lastMouseX, lastMouseY);
+}
+
+// Validity + clamped on-felt position for a candidate screen point. Returns the
+// physics coords to post, the screen center to draw the ghost at, and whether
+// the spot is clear of other balls.
+function evalPlacement(screenX, screenY) {
+    const cb = getCueBall();           // current cue ball, used only for its size
+    const r = cb ? cb.r : 14;          // screen radius
+    const p = screenToPhysics(screenX, screenY);
+    // clamp so the whole ball stays on the felt
+    const px = Math.min(Math.max(p.x, BALL_RADIUS), TABLE_WIDTH - BALL_RADIUS);
+    const py = Math.min(Math.max(p.y, BALL_RADIUS), TABLE_LENGTH - BALL_RADIUS);
+    // screen center of that clamped spot (forward of screenToPhysics)
+    const sx = p.felt.right - py * p.s;
+    const sy = p.felt.top + px * p.s;
+    // reject if it would overlap another ball (compared in screen space)
+    let ok = true;
+    $('#poolTable circle[data_num]').each(function() {
+        if ($(this).attr('data_ball') === 'cueBall') return;
+        const rect = this.getBoundingClientRect();
+        const bx = rect.left + rect.width / 2;
+        const by = rect.top + rect.height / 2;
+        if (Math.hypot(bx - sx, by - sy) < r + rect.width / 2) ok = false;
+    });
+    return { x: px, y: py, sx: sx, sy: sy, r: r, ok: ok };
+}
+
+function updateGhost(screenX, screenY) {
+    if (screenX === null || screenY === null || !ghostCue) return null;
+    const e = evalPlacement(screenX, screenY);
+    ghostCue.css({
+        display: 'block',
+        left: e.sx + 'px',
+        top: e.sy + 'px',
+        width: (e.r * 2) + 'px',
+        height: (e.r * 2) + 'px',
+    }).toggleClass('blocked', !e.ok);
+    return e;
+}
+
+function onPlaceMove(event) {
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+    updateGhost(event.clientX, event.clientY);
+}
+
+function onPlaceClick(event) {
+    if (event.button !== 0) return;
+    if ($(event.target).closest('#gameInfo').length) return; // ignore UI clicks
+    const e = updateGhost(event.clientX, event.clientY);
+    if (!e || !e.ok) return; // overlapping a ball: keep waiting for a clear spot
+    // lock placement: drop the placement listeners and hide the hint, but keep
+    // aiming suppressed (placingCue) until the server returns the new table
+    $(document).off('.place');
+    if (ghostCue) ghostCue.css('display', 'none');
+    if (binhBanner) binhBanner.css('display', 'none');
+    const gameid = $('#game_id').attr('data_id');
+    $.post('/placeCue', { x: e.x, y: e.y, gameid: gameid }, (data) => {
+        $('body').removeClass('placingCue');
+        displayFrame(data.frame);
+        placingCue = false;
+        addEventListeners();
+    }, 'json');
 }
 
 // Cast the cue ball's path from its center along (dirX, dirY), stopping at
@@ -432,6 +548,13 @@ function showShot(data, status, delay = 0) {
         let prevStripe = stripeBallCount;
         countBalls();
         checkNaturalWin(prevSolid, prevStripe, scratched);
+        if (!isGameOver && scratched) {
+            // A scratch is a foul: the turn always passes, and the incoming
+            // player gets ball-in-hand to place the cue ball anywhere.
+            switchCurrentP();
+            enterBallInHand();
+            return;
+        }
         if (!isGameOver) {
             addEventListeners();
             // To check if the player gets another turn

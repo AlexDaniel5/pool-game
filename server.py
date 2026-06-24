@@ -129,6 +129,28 @@ class MyHandler(BaseHTTPRequestHandler):
             self.send_header('Content-length', len(content))
             self.end_headers()
             self.wfile.write(bytes(content, "utf-8"))
+        elif parsed.path == '/placeCue':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            formData = dict(parse_qsl(post_data))
+
+            x = float(formData.get('x'))
+            y = float(formData.get('y'))
+            gameid = int(formData.get('gameid'))
+
+            game = Physics.Game(gameid)
+            table = game.placeCue(x, y)
+            # Keep the on-disk snapshot in sync so a reload shows the new spot
+            svgString = table.svg()
+            with open('poolTable.svg', 'w') as file:
+                file.write(svgString)
+
+            content = json.dumps({'frame': svgString})
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-length', len(content))
+            self.end_headers()
+            self.wfile.write(bytes(content, "utf-8"))
         else:
             # Generate 404 for POST requests that aren't the file above
             self.send_response(404)

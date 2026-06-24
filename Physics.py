@@ -140,6 +140,10 @@ def ballSVG(number, x, y):
         parts.append('<text x="%d" y="%d" transform="rotate(-90 %d %d)" font-family="Arial, sans-serif" font-size="%d" font-weight="bold" fill="#1c1c1c" text-anchor="middle" dominant-baseline="central" pointer-events="none">%d</text>'
                      % (x, y, x, y, fontSize, number))
     parts.append('<circle cx="%d" cy="%d" r="%d" fill="url(#ballGloss)" pointer-events="none"/>' % (x, y, r))
+    # Group the cue ball so the client can hide it wholesale (shadow + gloss
+    # included) during ball-in-hand placement, where a preview follows the cursor
+    if number == 0:
+        return ' <g class="cueBallGroup">' + "".join(parts) + '</g>\n'
     return " " + "".join(parts) + "\n"
 
 ################################################################################
@@ -399,6 +403,23 @@ class Table( phylib.phylib_table ):
             pos = Coordinate(675, 2025)
             self += StillBall(0, pos)
         return not found
+
+    # Move the (still) cue ball to a new position, for ball-in-hand placement
+    # after a scratch. Returns True if the cue ball was found and moved.
+    # Capture the reference across the full loop, then mutate (like cueBall);
+    # breaking out of the iteration early leaves the table's object proxies in a
+    # corrupt state that makes a subsequent writeTable drop every ball.
+    def placeCueBall(self, x, y):
+        cueBall = None
+        for obj in self:
+            if obj is not None and obj.type == phylib.PHYLIB_STILL_BALL \
+                    and obj.obj.still_ball.number == 0:
+                cueBall = obj
+        if isinstance(cueBall, StillBall):
+            cueBall.obj.still_ball.pos.x = x
+            cueBall.obj.still_ball.pos.y = y
+            return True
+        return False
 
 
 class Database:
@@ -689,3 +710,14 @@ class Game:
         tableID = self.database.writeTable(oldTable, gameName) # Write the last table to the database
         self.database.shotFinished(tableID, gameID) # Update game with newest tableID
         return tablesList, oldTable, scratched
+
+    # Ball-in-hand: move the cue ball to (x, y) and persist the new table state
+    # as the game's current table. Returns the updated table.
+    def placeCue(self, x, y):
+        self.database = Database()
+        table = self.database.readTable(self.tableID)
+        table.placeCueBall(x, y)
+        tableID = self.database.writeTable(table, self.gameName)
+        self.database.shotFinished(tableID, self.gameID)
+        self.tableID = tableID
+        return table
