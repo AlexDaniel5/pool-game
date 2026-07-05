@@ -26,8 +26,12 @@
         <span class="playerSide" id="player2Side"></span>
       </div>
     </div>
-    <!-- SVG File -->
-    <svg id="poolTable" width="1000" height="500" viewBox="0 0 1400 2750" xmlns="http://www.w3.org/2000/svg"></svg>
+    <!-- SVG File. The viewBox must match the footprint of the inner SVG that
+         Physics.py generates (width="700" height="1375") so the table exactly
+         fills this element; sizing and rotation happen in CSS. -->
+    <div id="tableWrap">
+      <svg id="poolTable" viewBox="0 0 700 1375" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
     <div id="game_id" data_id="0"></div>
     <div id="current_turn" data_cp="0"></div>
   </div>

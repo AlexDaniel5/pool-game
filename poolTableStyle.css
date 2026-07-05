@@ -4,16 +4,32 @@
     --panel-border: rgba(255, 255, 255, 0.1);
     --text: #e8eaf0;
     --text-dim: #9aa3b2;
+    /* Single source of truth for page spacing */
+    --page-pad: 24px;
+    /* On-screen length of the table's long side. Capped so the whole game
+       (scoreboard + table) keeps --page-pad clear of every viewport edge;
+       the 170px term reserves room for the scoreboard row. The short side
+       follows from the SVG's 700:1375 aspect ratio. */
+    --table-len: min(1100px,
+                     calc(100vw - 2 * var(--page-pad)),
+                     calc((100vh - 170px) * 1375 / 700));
+    --table-w: calc(var(--table-len) * 700 / 1375);
 }
 
 html, body {
-    display: flex;
-    justify-content: right;
-    align-items: bottom;
     margin: 0;
-    min-height: 100vh;
     color: var(--text);
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* Center the game block in the viewport */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: var(--page-pad);
+    box-sizing: border-box;
 }
 
 /* Paint the background on the root only. body is a shrink-to-content flex
@@ -68,13 +84,20 @@ html {
     filter: brightness(0.95);
 }
 
+/* The wrapper reserves the table's rotated (landscape) footprint in normal
+   flow; the portrait SVG is centered inside it and rotated 90° about its own
+   center, so the rotated visual exactly fills the wrapper. */
+#tableWrap {
+    width: var(--table-len);
+    height: var(--table-w);
+    display: grid;
+    place-items: center;
+}
+
 #poolTable {
-    width: 2000px;
-    height: 1000px;
-    /* scale() at the end enlarges the table; it shares the default center
-       transform-origin with rotate, so the table grows in place from the
-       original position. Tune this factor to taste. */
-    transform: translate(-330px, 0px) rotate(90deg) scale(1.4);
+    width: var(--table-w);
+    height: var(--table-len);
+    transform: rotate(90deg);
     filter: drop-shadow(0 0 35px rgba(0, 0, 0, 0.55));
     shape-rendering: geometricPrecision;
 }
@@ -83,8 +106,7 @@ html {
     display: flex;
     flex-direction: column;
     align-items: center;
-    max-width: 1400px;
-    padding: 10px;
+    gap: 16px;
 }
 
 /* Scoreboard */
@@ -93,7 +115,6 @@ html {
     align-items: center;
     justify-content: center;
     gap: 14px;
-    margin-top: 6px;
 }
 
 .playerCard {
