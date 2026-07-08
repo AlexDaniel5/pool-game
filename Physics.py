@@ -8,10 +8,11 @@ import math
 BALL_RADIUS = phylib.PHYLIB_BALL_RADIUS
 BALL_DIAMETER = 2 * BALL_RADIUS
 HOLE_RADIUS = 2 * BALL_DIAMETER
-# Visible pocket opening: 10% smaller than HOLE_RADIUS. The capture hitbox in
-# phylib.c (ball captured when its center is within POCKET_RADIUS of the hole)
-# is kept equal to this so the drawn hole and the hitbox line up exactly.
-POCKET_RADIUS = HOLE_RADIUS * 0.9
+# Visible pocket opening, drawn smaller than the capture hitbox so the pockets
+# look tighter. The capture hitbox in phylib.c is 0.855 * HOLE_RADIUS (ball
+# captured when its center gets that close to the hole), so a ball already
+# overlaps the drawn mouth by the time it is swallowed.
+POCKET_RADIUS = HOLE_RADIUS * 0.8
 TABLE_LENGTH = phylib.PHYLIB_TABLE_LENGTH
 TABLE_WIDTH = TABLE_LENGTH / 2.0
 SIM_RATE = phylib.PHYLIB_SIM_RATE
@@ -45,9 +46,14 @@ xmlns:xlink="http://www.w3.org/1999/xlink">
  </linearGradient>
  <radialGradient id="pocketGrad" cx="50%" cy="50%" r="50%">
   <stop offset="0%" stop-color="#000000"/>
-  <stop offset="55%" stop-color="#050505"/>
-  <stop offset="80%" stop-color="#181818"/>
-  <stop offset="100%" stop-color="#303030"/>
+  <stop offset="60%" stop-color="#040604"/>
+  <stop offset="85%" stop-color="#0e1c13"/>
+  <stop offset="100%" stop-color="#1d4229"/>
+ </radialGradient>
+ <radialGradient id="pocketFade" cx="50%" cy="50%" r="50%">
+  <stop offset="0%" stop-color="#08110b" stop-opacity="0.5"/>
+  <stop offset="60%" stop-color="#08110b" stop-opacity="0.5"/>
+  <stop offset="100%" stop-color="#08110b" stop-opacity="0"/>
  </radialGradient>
  <radialGradient id="ballGloss" cx="33%" cy="30%" r="80%">
   <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
@@ -204,9 +210,10 @@ class Hole(phylib.phylib_object):
         self.__class__ = Hole
 
     def svg(self):
-        # dark rim ring around a radial-gradient core for a sense of depth
-        return """ <circle cx="%d" cy="%d" r="%d" fill="#1b0f06"/><circle cx="%d" cy="%d" r="%d" fill="url(#pocketGrad)"/>\n""" % (
-            self.obj.hole.pos.x, self.obj.hole.pos.y, POCKET_RADIUS + 8,
+        # soft shadow halo fading to transparent so the pocket melts into the
+        # felt, over a core gradient whose edge ends in dark felt-green
+        return """ <circle cx="%d" cy="%d" r="%d" fill="url(#pocketFade)"/><circle cx="%d" cy="%d" r="%d" fill="url(#pocketGrad)"/>\n""" % (
+            self.obj.hole.pos.x, self.obj.hole.pos.y, POCKET_RADIUS * 1.35,
             self.obj.hole.pos.x, self.obj.hole.pos.y, POCKET_RADIUS)
         
 class HCushion(phylib.phylib_object):
