@@ -75,10 +75,24 @@ function addEventListeners() {
 }
 
 // Redraw the aim using the last known cursor position (e.g. after a shot, so the
-// player sees the new aim without having to wiggle the mouse first)
+// player sees the new aim without having to wiggle the mouse first). Before the
+// first mousemove there is no cursor to aim at, so rest the cue pointed at the
+// felt center — at the break that lines it up with the rack and keeps the whole
+// stick on screen instead of leaving it hidden until the mouse moves.
 function refreshAim() {
-    if (lastMouseX === null) return;
-    onAimMove({ clientX: lastMouseX, clientY: lastMouseY, _synthetic: true });
+    let x = lastMouseX;
+    let y = lastMouseY;
+    if (x === null) {
+        const feltEl = $('#poolTable rect[fill="url(#feltGrad)"]')[0];
+        const cb = getCueBall();
+        if (!feltEl || !cb) return;
+        const felt = feltEl.getBoundingClientRect();
+        x = felt.left + felt.width / 2;
+        y = felt.top + felt.height / 2;
+        // ball dead center: aim down the table instead of at a zero-length target
+        if (Math.hypot(x - cb.cx, y - cb.cy) < 1) x = felt.left;
+    }
+    onAimMove({ clientX: x, clientY: y, _synthetic: true });
 }
 
 function onAimMove(event) {

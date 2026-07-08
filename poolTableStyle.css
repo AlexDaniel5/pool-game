@@ -91,6 +91,11 @@ html {
     width: var(--table-len);
     height: var(--table-w);
     display: grid;
+    /* one explicit track the size of the wrap itself: without it the row
+       auto-sizes to the portrait svg's height (--table-len, taller than this
+       wrap), and place-items centers within THAT track, dropping the rotated
+       table (--table-len - --table-w)/2 px below where it belongs */
+    grid-template: 100% / 100%;
     place-items: center;
 }
 
@@ -185,20 +190,27 @@ html {
     color: var(--text);
 }
 
-/* Cue stick: tip (chalk + ferrule) at the cue ball, shaft fading to the butt */
+/* Cue stick: tip (chalk + ferrule) at the cue ball, shaft tapering out to the
+   butt. position: fixed matches the viewport coords the JS measures with
+   getBoundingClientRect — absolute drifted when the page scrolled and grew
+   scrollbars whenever the butt poked past the viewport edge. */
 .cueStick {
     display: none;
-    position: absolute;
-    height: 10px;
-    margin-top: -5px;
+    position: fixed;
+    height: 12px;
+    margin-top: -6px;
     transform-origin: left center;
-    border-radius: 5px;
+    /* real cues taper: narrow at the tip, widening to the full height at the
+       butt (x=0 is the tip end; the div is rotated to point at the ball) */
+    clip-path: polygon(0% 29%, 100% 0%, 100% 100%, 0% 71%);
     background: linear-gradient(90deg,
-        transparent 0px, transparent 12px,
-        #4d8fd1 12px, #3b6fae 19px,
-        #f1ece0 19px, #e6dfcc 28px,
-        #d9b780 28px, #a8703a 60%, #5c3416 100%);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
+        transparent 0px, transparent 4px,
+        #5da2e6 4px, #3b6fae 11px,
+        #f1ece0 11px, #e6dfcc 20px,
+        #dcbc85 20px, #b98a4e 45%, #8a5a28 72%,
+        #46280f 73%, #2b1707 100%);
+    /* drop-shadow, not box-shadow: box-shadow would be cut off by clip-path */
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
     z-index: 500;
     pointer-events: none;
 }
@@ -207,7 +219,6 @@ html {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 5px;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.35));
 }
 
@@ -232,6 +243,7 @@ html {
     fill: none;
     stroke: rgba(255, 255, 255, 0.85);
     stroke-width: 2;
+    stroke-dasharray: 6 8;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
