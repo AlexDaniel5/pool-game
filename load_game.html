@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Load Game</title>
+    <link rel="stylesheet" href="gameSetupStyle.css">
+</head>
+<body>
+    <div class="loadPanel">
+        <h1>&#127921; Load Game</h1>
+        <p class="subtitle">Resume a saved game</p>
+        <div id="gameList" class="gameList"></div>
+        <a class="secondaryLink" href="game_setup.html">&#8592; New Game</a>
+    </div>
+
+    <script>
+        // Escape user-supplied names before injecting into the DOM.
+        function esc(s) {
+            var d = document.createElement('div');
+            d.textContent = s == null ? '' : String(s);
+            return d.innerHTML;
+        }
+
+        // POST the chosen game id to /pool_table.html so the browser lands on
+        // the returned game page (same navigation the setup form uses).
+        function loadGame(id) {
+            var form = document.createElement('form');
+            form.method = 'post';
+            form.action = '/pool_table.html';
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'game_id';
+            input.value = id;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function render(games) {
+            var list = document.getElementById('gameList');
+            if (!games || games.length === 0) {
+                list.innerHTML = '<div class="emptyState">No saved games to resume yet.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            games.forEach(function (g) {
+                var row = document.createElement('div');
+                row.className = 'gameRow';
+
+                var meta = document.createElement('div');
+                meta.className = 'meta';
+                var ballWord = g.ballsRemaining === 1 ? 'ball' : 'balls';
+                meta.innerHTML =
+                    '<span class="players">' + esc(g.player1) + ' vs ' + esc(g.player2) + '</span>' +
+                    '<span class="sub">' + esc(g.gameName) + ' &middot; #' + g.gameID +
+                    ' &middot; ' + g.ballsRemaining + ' ' + ballWord + ' left</span>';
+
+                var btn = document.createElement('button');
+                btn.className = 'loadButton';
+                btn.textContent = 'Load';
+                btn.addEventListener('click', function () { loadGame(g.gameID); });
+
+                row.appendChild(meta);
+                row.appendChild(btn);
+                list.appendChild(row);
+            });
+        }
+
+        fetch('/games')
+            .then(function (r) { return r.json(); })
+            .then(render)
+            .catch(function () {
+                document.getElementById('gameList').innerHTML =
+                    '<div class="emptyState">Could not load saved games.</div>';
+            });
+    </script>
+</body>
+</html>

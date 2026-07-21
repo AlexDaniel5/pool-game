@@ -618,6 +618,8 @@ function switchCurrentP() {
     var nextPlayerText = currentPlayerText === p1Name ? p2Name : p1Name;
     $('#currentP').text(nextPlayerText);
     updateTurnUI();
+    // Persist the new turn so resuming the game restores the right player
+    $.post('/turn', { gameid: $('#game_id').attr('data_id'), turn: currentPlayer });
 }
 
 // Highlight the card of the player whose turn it is

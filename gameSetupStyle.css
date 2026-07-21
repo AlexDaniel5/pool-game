@@ -95,3 +95,104 @@ input[type="text"]:focus {
     transform: translateY(0);
     filter: brightness(0.95);
 }
+
+.secondaryLink {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.secondaryLink:hover {
+    color: var(--accent);
+}
+
+/* ---- Load-game screen ---- */
+.loadPanel {
+    display: flex;
+    flex-direction: column;
+    max-width: 460px;
+    width: 100%;
+    padding: 34px 38px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+
+.gameList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 8px 0 4px;
+    max-height: 52vh;
+    overflow-y: auto;
+}
+
+.gameRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+}
+
+.gameRow .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.gameRow .players {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gameRow .sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.4px;
+}
+
+.loadButton {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #2a1d04;
+    background: linear-gradient(180deg, #ffd061, var(--accent));
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.loadButton:hover {
+    filter: brightness(1.07);
+    transform: translateY(-1px);
+}
+
+.loadButton:active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+}
+
+.emptyState {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    padding: 24px 0;
+}

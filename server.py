@@ -10,7 +10,7 @@ import random
 class MyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
-        if parsed.path == '/game_setup.html':
+        if parsed.path in ('/game_setup.html', '/load_game.html'):
             # Retrieve the HTML file
             fp = open( '.'+self.path )
             content = fp.read()
@@ -21,6 +21,14 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
             # Send it to the browser
+            self.wfile.write(bytes(content, "utf-8"))
+        # Return the list of resumable saved games as JSON
+        elif parsed.path == '/games':
+            content = json.dumps(Physics.Database().getInProgressGames())
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-length', len(content))
+            self.end_headers()
             self.wfile.write(bytes(content, "utf-8"))
         # Find my master svg file
         elif parsed.path == '/poolTable.svg':
@@ -71,15 +79,25 @@ class MyHandler(BaseHTTPRequestHandler):
             gameName = formData.get('game_name', None)
             gameID = formData.get('game_id', None)
 
-            # Randomize who plays first
-            playerNum = random.randint(1, 2)
-            if playerNum == 1:
-                currentPlayer = p1Name
+            if gameID:
+                # Load an existing game: reconstruct it and resume its saved
+                # board state and turn.
+                game = Physics.Game(int(gameID))
+                gameName = game.gameName
+                p1Name = game.player1Name
+                p2Name = game.player2Name
+                playerNum = game.turn
+                # Refresh the on-disk snapshot so the client renders the loaded
+                # board (readTable handles the TABLEID+1 offset).
+                with open('poolTable.svg', 'w') as file:
+                    file.write(game.database.readTable(game.tableID).svg())
             else:
-                currentPlayer = p2Name
+                # Create a new game and persist its randomized starting player.
+                playerNum = random.randint(1, 2)
+                game = Physics.Game(None, gameName, p1Name, p2Name)
+                game.setTurn(playerNum)
 
-            # Initalize game
-            game = Physics.Game(gameID, gameName, p1Name, p2Name)
+            currentPlayer = p1Name if playerNum == 1 else p2Name
 
             # Replace the data of the initial html file with the variables given 
             htmlContent = ''
@@ -151,6 +169,22 @@ class MyHandler(BaseHTTPRequestHandler):
             self.send_header('Content-length', len(content))
             self.end_headers()
             self.wfile.write(bytes(content, "utf-8"))
+        elif parsed.path == '/turn':
+            # Persist whose turn it is so a resumed game restores the right player
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            formData = dict(parse_qsl(post_data))
+
+            gameid = int(formData.get('gameid'))
+            turn = int(formData.get('turn'))
+            Physics.Database().setTurn(gameid, turn)
+
+            content = json.dumps({'ok': True})
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-length', len(content))
+            self.end_headers()
+            self.wfile.write(bytes(content, "utf-8"))
         else:
             # Generate 404 for POST requests that aren't the file above
             self.send_response(404)
@@ -158,6 +192,8 @@ class MyHandler(BaseHTTPRequestHandler):
             self.wfile.write(bytes("404: %s not found" % self.path, "utf-8"))
 
 if __name__ == '__main__':
+    # Ensure the schema (incl. the TURN column migration) exists before serving.
+    Physics.Database().createDB()
     httpd = HTTPServer( ( 'localhost', int(sys.argv[1]) ), MyHandler )
     print( "Server listing in port:  ", int(sys.argv[1]) )
     print(f'Server started on http://localhost:{sys.argv[1]}/game_setup.html')

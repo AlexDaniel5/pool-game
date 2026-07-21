@@ -474,16 +474,23 @@ class Database:
                             GAMEID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                             TABLEID INTEGER NOT NULL,
                             GAMENAME VARCHAR (64),
+                            TURN INTEGER DEFAULT 1,
                             FOREIGN KEY (TABLEID) REFERENCES TTABLE);""")
-        
+
         self.cursor.execute("""CREATE TABLE IF NOT EXISTS PLAYER (
                             PLAYERID INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                             GAMEID INTEGER NOT NULL,
                             PLAYERNAME VARCHAR (64) NOT NULL,
                             FOREIGN KEY (GAMEID) REFERENCES GAME(GAMEID) );""")
 
+        # Migrate pre-existing databases whose GAME table predates the TURN column.
+        try:
+            self.cursor.execute("ALTER TABLE GAME ADD COLUMN TURN INTEGER DEFAULT 1")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
         self.conn.commit()
-        self.cursor.close()                    
+        self.cursor.close()
     
     def readTable(self, tableID):
         self.cursor = self.conn.cursor()
@@ -571,12 +578,13 @@ class Database:
                             ORDER BY PLAYERID
                             """, (gameID,))
         data = self.cursor.fetchall()
-        self.cursor.execute("SELECT TABLEID FROM GAME WHERE GAMEID = ?", (gameID,))
+        self.cursor.execute("SELECT TABLEID, TURN FROM GAME WHERE GAMEID = ?", (gameID,))
         table_row = self.cursor.fetchone()
         tableID = int(table_row[0])
+        turn = int(table_row[1]) if table_row[1] is not None else 1
         self.conn.commit()
         self.cursor.close()
-        return data, tableID
+        return data, tableID, turn
 
     def shotFinished(self, tableID, gameID):
         self.cursor = self.conn.cursor()
@@ -585,10 +593,56 @@ class Database:
         self.conn.commit()
         self.cursor.close()
 
-    def setGame(self, gameName, tableID, player1Name, player2Name):
+    # Persist whose turn it is (player number 1 or 2) for a game.
+    def setTurn(self, gameID, turn):
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("UPDATE GAME SET TURN = ? WHERE GAMEID = ?", (turn, gameID))
+        self.conn.commit()
+        self.cursor.close()
+
+    # Return recent in-progress games (8-ball still on the table, more than one
+    # ball remaining), newest first, for the load-game screen. Each entry is a
+    # dict with gameID, gameName, player1, player2, ballsRemaining and turn.
+    # NOTE: a game's live board lives at BALLTABLE.TABLEID = GAME.TABLEID + 1
+    # (writeTable stores rowid-1; readTable reads back at tableID+1).
+    def getInProgressGames(self):
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("""
+            SELECT g.GAMEID, g.GAMENAME, g.TURN,
+                   (SELECT COUNT(*) FROM BALLTABLE bt
+                      WHERE bt.TABLEID = g.TABLEID + 1) AS nballs,
+                   (SELECT COUNT(*) FROM BALLTABLE bt
+                      JOIN BALL b ON b.BALLID = bt.BALLID
+                      WHERE bt.TABLEID = g.TABLEID + 1 AND b.BALLNO = 8) AS has8
+            FROM GAME g
+            ORDER BY g.GAMEID DESC
+        """)
+        rows = self.cursor.fetchall()
+        games = []
+        for gameID, gameName, turn, nballs, has8 in rows:
+            # Keep only playable games: 8-ball present and more than just the cue ball.
+            if not has8 or nballs <= 1:
+                continue
+            self.cursor.execute(
+                "SELECT PLAYERNAME FROM PLAYER WHERE GAMEID = ? ORDER BY PLAYERID",
+                (gameID,))
+            players = [r[0] for r in self.cursor.fetchall()]
+            games.append({
+                "gameID": gameID,
+                "gameName": gameName,
+                "player1": players[0] if len(players) > 0 else "Player 1",
+                "player2": players[1] if len(players) > 1 else "Player 2",
+                "ballsRemaining": nballs,
+                "turn": int(turn) if turn is not None else 1,
+            })
+        self.conn.commit()
+        self.cursor.close()
+        return games
+
+    def setGame(self, gameName, tableID, player1Name, player2Name, turn=1):
         self.cursor = self.conn.cursor()
         # Insert a new game into the game table
-        self.cursor.execute("INSERT INTO GAME (TABLEID, GAMENAME) VALUES (?, ?)", (tableID, gameName))
+        self.cursor.execute("INSERT INTO GAME (TABLEID, GAMENAME, TURN) VALUES (?, ?, ?)", (tableID, gameName, turn))
         gameID = self.cursor.lastrowid
         # Insert both players into the player table
         self.cursor.execute("INSERT INTO PLAYER (GAMEID, PLAYERNAME) VALUES (?, ?)", (gameID, player1Name))
@@ -636,7 +690,7 @@ class Game:
             and player2Name is None
         ):
             self.gameID = gameID
-            game, self.tableID = self.database.getGame(gameID)
+            game, self.tableID, self.turn = self.database.getGame(gameID)
             self.player1Name, self.gameName = game[0]
             self.player2Name = game[1][0]
         # Creating a game with attributes given
@@ -651,8 +705,14 @@ class Game:
             self.player2Name = player2Name
             self.tableID = Game.createTable(gameName)
             self.gameID = self.database.setGame(gameName, self.tableID, player1Name, player2Name)
+            self.turn = 1
         else:
             raise TypeError("Invalid arguments for constructor.")
+
+    # Persist and record whose turn it is (player number 1 or 2).
+    def setTurn(self, turn):
+        self.turn = int(turn)
+        self.database.setTurn(self.gameID, self.turn)
     
     def createTable(gameName):
         table = Table()
