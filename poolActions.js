@@ -534,6 +534,23 @@ function recordBallPositions() {
     return map;
 }
 
+// A complete miss: the cue ball (data_num "0") contacted no object ball during
+// the shot. Every object ball that was on the table beforehand is still there
+// and hasn't moved. A pocketed ball (gone from the table) or any moved ball
+// means contact was made. Positions are integer-rendered, so a real hit shifts
+// a ball far more than the 1px slop we allow here.
+function wasCompleteMiss(startPositions) {
+    const end = recordBallPositions();
+    for (const num in startPositions) {
+        if (num === '0') continue; // the cue ball itself always moves
+        if (!(num in end)) return false; // an object ball was pocketed
+        const a = startPositions[num];
+        const b = end[num];
+        if (Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1) return false;
+    }
+    return true;
+}
+
 // A ball that was present last frame but is gone now was pocketed:
 // play a small ripple at its last known position
 function spawnPocketRipples(prev, curr) {
@@ -551,6 +568,9 @@ function showShot(data, status, delay = 0) {
     const frames = data.frames.split("<!---->\n");
     const scratched = data.scratch;
     const FRAME_MS = 10;
+    // Resting positions before the shot plays, used after the animation to tell
+    // whether the cue ball made contact with any object ball at all.
+    const shotStartPositions = recordBallPositions();
     let prevPositions = recordBallPositions();
     let startTime = null;
     let lastIndex = -1;
@@ -565,6 +585,13 @@ function showShot(data, status, delay = 0) {
         if (!isGameOver && scratched) {
             // A scratch is a foul: the turn always passes, and the incoming
             // player gets ball-in-hand to place the cue ball anywhere.
+            switchCurrentP();
+            enterBallInHand();
+            return;
+        }
+        if (!isGameOver && wasCompleteMiss(shotStartPositions)) {
+            // The cue ball touched no object ball: a foul. Like a scratch, the
+            // turn passes and the incoming player gets ball-in-hand.
             switchCurrentP();
             enterBallInHand();
             return;

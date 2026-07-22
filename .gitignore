@@ -1,3 +1,14 @@
 # Ignore compiled object files
 *.o
 *.so
+
+# Python bytecode cache
+__pycache__/
+
+# SWIG-generated bindings (produced by `make`)
+phylib.py
+phylib_wrap.c
+
+# Runtime-generated artifacts
+phylib.db
+poolTable.svg

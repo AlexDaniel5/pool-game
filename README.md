@@ -54,6 +54,10 @@ line:
   remaining; on a tie they are assigned stripes.
 - **Winning:** pot all of your balls and then the 8-ball, or win automatically
   if your opponent sinks the 8-ball before clearing their own.
+- **Fouls:** scratching (potting the cue ball) or a **complete miss** — a shot
+  where the cue ball contacts no object ball at all — passes the turn and hands
+  the incoming player *ball-in-hand*: they place the cue ball anywhere open on
+  the felt before shooting.
 - The aiming guide shows the projected trajectory, cushion bounces, a ghost ball
   at the contact point, and the object ball's deflection line.
 - A back button in the top-right HUD starts a new game.
