@@ -169,6 +169,21 @@ class MyHandler(BaseHTTPRequestHandler):
             self.send_header('Content-length', len(content))
             self.end_headers()
             self.wfile.write(bytes(content, "utf-8"))
+        elif parsed.path == '/delete':
+            # Remove a saved game so it drops off the load-game list.
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length).decode('utf-8')
+            formData = dict(parse_qsl(post_data))
+
+            gameid = int(formData.get('game_id'))
+            Physics.Database().deleteGame(gameid)
+
+            content = json.dumps({'ok': True})
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-length', len(content))
+            self.end_headers()
+            self.wfile.write(bytes(content, "utf-8"))
         elif parsed.path == '/turn':
             # Persist whose turn it is so a resumed game restores the right player
             content_length = int(self.headers['Content-Length'])

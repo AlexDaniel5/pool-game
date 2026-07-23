@@ -37,6 +37,26 @@
             form.submit();
         }
 
+        // Delete a saved game, then refresh the list in place.
+        function deleteGame(id, label) {
+            if (!window.confirm('Delete "' + label + '"? This cannot be undone.')) {
+                return;
+            }
+            var body = 'game_id=' + encodeURIComponent(id);
+            fetch('/delete', {
+                method: 'POST',
+                headers: { 'Content-type': 'application/x-www-form-urlencoded' },
+                body: body
+            })
+                .then(function () { return fetch('/games'); })
+                .then(function (r) { return r.json(); })
+                .then(render)
+                .catch(function () {
+                    document.getElementById('gameList').innerHTML =
+                        '<div class="emptyState">Could not delete that game.</div>';
+                });
+        }
+
         function render(games) {
             var list = document.getElementById('gameList');
             if (!games || games.length === 0) {
@@ -56,13 +76,25 @@
                     '<span class="sub">' + esc(g.gameName) + ' &middot; #' + g.gameID +
                     ' &middot; ' + g.ballsRemaining + ' ' + ballWord + ' left</span>';
 
+                var actions = document.createElement('div');
+                actions.className = 'actions';
+
                 var btn = document.createElement('button');
                 btn.className = 'loadButton';
                 btn.textContent = 'Load';
                 btn.addEventListener('click', function () { loadGame(g.gameID); });
 
+                var del = document.createElement('button');
+                del.className = 'deleteButton';
+                del.textContent = 'Delete';
+                del.addEventListener('click', function () {
+                    deleteGame(g.gameID, g.gameName);
+                });
+
+                actions.appendChild(btn);
+                actions.appendChild(del);
                 row.appendChild(meta);
-                row.appendChild(btn);
+                row.appendChild(actions);
                 list.appendChild(row);
             });
         }

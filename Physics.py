@@ -639,6 +639,17 @@ class Database:
         self.cursor.close()
         return games
 
+    # Remove a saved game so it no longer appears on the load-game screen.
+    # Deletes the GAME row along with its PLAYER and SHOT records; the shared
+    # TTABLE/BALLTABLE snapshots are left in place (harmless orphans).
+    def deleteGame(self, gameID):
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("DELETE FROM PLAYER WHERE GAMEID = ?", (gameID,))
+        self.cursor.execute("DELETE FROM SHOT WHERE GAMEID = ?", (gameID,))
+        self.cursor.execute("DELETE FROM GAME WHERE GAMEID = ?", (gameID,))
+        self.conn.commit()
+        self.cursor.close()
+
     def setGame(self, gameName, tableID, player1Name, player2Name, turn=1):
         self.cursor = self.conn.cursor()
         # Insert a new game into the game table

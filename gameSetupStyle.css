@@ -190,6 +190,36 @@ input[type="text"]:focus {
     filter: brightness(0.95);
 }
 
+.gameRow .actions {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.deleteButton {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffd7d1;
+    background: rgba(220, 60, 50, 0.14);
+    border: 1px solid rgba(220, 60, 50, 0.45);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease, filter 0.12s ease;
+}
+
+.deleteButton:hover {
+    background: rgba(220, 60, 50, 0.28);
+    transform: translateY(-1px);
+}
+
+.deleteButton:active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+}
+
 .emptyState {
     text-align: center;
     color: var(--text-dim);
